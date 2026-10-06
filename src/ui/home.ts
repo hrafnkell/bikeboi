@@ -3,6 +3,7 @@
 import { devices } from '../ble/devices.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { circuits, findCircuit } from '../ride/circuits/index.ts';
+import type { SavedRide } from '../ride/ride-store.ts';
 import { findScene, sceneList } from '../game/scenes.ts';
 import { loadGhost } from '../ride/ghost.ts';
 import {
@@ -12,10 +13,44 @@ import { saveSettings, settings } from '../state.ts';
 import type { GearMode } from '../state.ts';
 import type { DeviceInfo, DeviceKind } from '../types.ts';
 import { clamp, fmtClock, fmtKm, fmtLap, h } from './dom.ts';
+import { pacerEditor } from './pacer-editor.ts';
 import { riderEditor } from './rider-editor.ts';
 
-/** Set this to the public repository once the source is published (AGPL section 13). */
-const SOURCE_URL = '';
+/** Where users of a hosted copy can get the source (AGPL section 13). */
+const SOURCE_URL = 'https://github.com/hrafnkell/bikeboi';
+
+const WELCOMED_KEY = 'bikeboi:welcomed';
+
+/** One-time card pointing new visitors at the About page. */
+function welcomeCard(): HTMLDialogElement | null {
+  try {
+    if (localStorage.getItem(WELCOMED_KEY)) return null;
+  } catch {
+    return null; // no storage: don't nag on every visit
+  }
+  const remember = () => {
+    try {
+      localStorage.setItem(WELCOMED_KEY, '1');
+    } catch {
+      // nothing to do
+    }
+  };
+  const dialog = h('dialog', { class: 'welcome', 'aria-labelledby': 'welcome-title' });
+  const tour = h('a', { class: 'btn btn-primary', href: '#about' }, 'Show me how it works');
+  const skip = h('button', { class: 'btn' }, 'Jump straight in');
+  tour.addEventListener('click', () => dialog.close());
+  skip.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', remember);
+  dialog.addEventListener('cancel', remember); // Esc: fires before the close event
+  dialog.append(
+    h('h2', { id: 'welcome-title' }, 'Welcome to bikeboi'),
+    h('p', null,
+      'A side-scrolling game for your indoor trainer: ride laps, chase your own ghost, shift virtual gears. It needs Chrome or Edge and a Bluetooth trainer, or you can try it with simulated power.',
+    ),
+    h('div', { class: 'row' }, tour, skip),
+  );
+  return dialog;
+}
 
 const deviceLabels: Record<DeviceKind, string> = {
   trainer: 'Trainer',
@@ -44,13 +79,17 @@ function profileSvg(circuit: Circuit): SVGSVGElement {
   return svg;
 }
 
-export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit): void }): () => void {
+export function renderHome(
+  root: HTMLElement,
+  opts: { onStart(circuit: Circuit): void; onResume(circuit: Circuit, ride: SavedRide): void },
+): () => void {
   let selected = findCircuit(settings.lastCircuitId);
   let disposed = false;
 
   // --- devices ---------------------------------------------------------------
   const rows = new Map<DeviceKind, { status: HTMLElement; button: HTMLButtonElement }>();
   const startBtn = h('button', { class: 'btn btn-primary btn-start' }, 'Ride');
+  const resumeBtn = h('button', { class: 'btn btn-primary' }, 'Resume ride');
 
   function describe(info: DeviceInfo): string {
     if (info.status === 'connecting') return info.name ? `Connecting to ${info.name}…` : 'Connecting…';
@@ -71,6 +110,7 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
       info.status === 'connected' ? 'Disconnect' : info.status === 'connecting' ? 'Cancel' : 'Connect';
     if (info.kind === 'trainer') {
       startBtn.textContent = info.status === 'connected' ? 'Ride' : 'Ride with simulated power';
+      resumeBtn.textContent = info.status === 'connected' ? 'Resume ride' : 'Resume with simulated power';
     }
   }
 
@@ -112,6 +152,7 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
       h('span', { class: 'circuit-stats' },
         `${fmtKm(circuit.length, 1)} km · ${Math.round(circuit.ascent)} m up · max ${(circuit.maxGrade * 100).toFixed(0)}%`,
       ),
+      h('span', { class: 'circuit-stats' }, `${circuit.segments.length} ${circuit.segments.length === 1 ? 'segment' : 'segments'}`),
       h('span', { class: 'circuit-best' }, ghost ? `Best lap ${fmtLap(ghost.lapTime)}` : 'No lap yet'),
       h('span', { class: 'circuit-scene' }, findScene(circuit.scene).name),
     );
@@ -156,6 +197,7 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
       input.value = String(settings[key]);
       saveSettings();
       devices.setRiderMass(settings.riderMass, settings.bikeMass);
+      if (key === 'ftp') pacer.refresh();
     });
     return h('label', { class: 'field' }, h('span', null, label), input, h('em', null, unit));
   }
@@ -186,6 +228,8 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
     h('label', { class: 'field' }, h('span', null, 'Hill difficulty'), diffInput, diffValue),
   );
 
+  const pacer = pacerEditor();
+
   const editor = riderEditor();
 
   // --- recovery --------------------------------------------------------------
@@ -193,10 +237,12 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
   void recoverRide().then((ride) => {
     if (disposed || !ride) return;
     const s = summarize(ride);
-    const save = h('button', { class: 'btn btn-primary' }, 'Save FIT file');
+    const circuit = circuits.find((c) => c.id === ride.meta.circuitId);
+    resumeBtn.addEventListener('click', () => circuit && opts.onResume(circuit, ride));
+    const save = h('button', { class: 'btn' }, 'Save FIT file');
     const discard = h('button', { class: 'btn' }, 'Discard');
     const msg = h('p', null,
-      `An unfinished ride on ${ride.meta.circuitName} was found: ${fmtClock(s.durationS)}, ${fmtKm(s.distanceM)} km. Starting a new ride replaces it.`,
+      `An unfinished ride on ${ride.meta.circuitName} was found: ${fmtClock(s.durationS)}, ${fmtKm(s.distanceM)} km. ${circuit ? 'You can pick it up where it stopped, or save what was recorded.' : 'You can save what was recorded.'} Starting a new ride replaces it.`,
     );
     save.addEventListener('click', async () => {
       try {
@@ -209,7 +255,7 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
       await discardSavedRide();
       recovery.hidden = true;
     });
-    recovery.replaceChildren(msg, h('div', { class: 'row' }, save, discard));
+    recovery.replaceChildren(msg, h('div', { class: 'row' }, circuit ? resumeBtn : null, save, discard));
     recovery.hidden = false;
   }).catch(() => {});
 
@@ -221,15 +267,26 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
     '.',
     SOURCE_URL ? ' ' : null,
     SOURCE_URL ? h('a', { href: SOURCE_URL, target: '_blank', rel: 'noopener' }, 'Source code') : null,
+    ' \u00B7 ',
+    h('a', { href: '#about' }, 'About'),
+    ' \u00B7 ',
+    h('a', { href: 'https://www.hlekkir.is', target: '_blank', rel: 'noopener' }, 'hlekkir.is'),
   );
 
   root.replaceChildren(
     h('main', { class: 'screen home' },
-      h('h1', null, 'bikeboi'),
+      h('header', { class: 'home-head' },
+        h('h1', null, 'bikeboi'),
+        h('a', { class: 'btn', href: '#about' }, 'About'),
+      ),
       recovery,
       h('section', null, h('h2', null, 'Devices'), noBluetooth, deviceList),
       h('section', null, h('h2', null, 'Circuit'), circuitList),
       h('section', null, h('h2', null, 'Scene'), sceneRow),
+      h('section', null,
+        h('h2', null, 'Pacemaker'),
+        pacer.el,
+      ),
       h('section', null, h('h2', null, 'Your rider'), editor.el),
       h('section', null, h('h2', null, 'Setup'), settingsBox),
       h('p', { class: 'note' }, 'Shift with the Click, the on-screen buttons or the up / down arrow keys.'),
@@ -237,6 +294,12 @@ export function renderHome(root: HTMLElement, opts: { onStart(circuit: Circuit):
       footer,
     ),
   );
+
+  const welcome = welcomeCard();
+  if (welcome) {
+    root.firstElementChild?.append(welcome);
+    welcome.showModal();
+  }
 
   return () => {
     disposed = true;

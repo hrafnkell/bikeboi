@@ -244,6 +244,23 @@ export class Recorder {
     this.addEvent({ timestamp: meta.startedAt, type: 'start' });
   }
 
+  /**
+   * Continue a ride recovered from the autosave (see recoverRide). It starts paused; the
+   * first resume() opens a new timer span, so the break is not counted as riding.
+   */
+  resumeFrom(saved: SavedRide): void {
+    this.ride = {
+      meta: { ...saved.meta },
+      samples: saved.samples.map((s) => ({ ...s })),
+      laps: saved.laps.map((l) => ({ ...l })),
+      events: repairEvents(saved),
+    };
+    this.paused = true;
+    // The stored copy may end without its stop; a repeated stop is dropped when read back.
+    const last = this.ride.events[this.ride.events.length - 1];
+    if (last?.type === 'stop') this.persist(() => this.store.appendEvent(last));
+  }
+
   addSample(s: RideSample): void {
     if (!this.ride || this.paused) return;
     const sample = { ...s };

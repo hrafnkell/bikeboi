@@ -291,3 +291,145 @@ export function drawRiderFigure(ctx: CanvasRenderingContext2D, paint: RiderPaint
     dot({ x: 0.97, y: 0.98 }, 0.035, '#fff8dc');
   }
 }
+
+// --- the pacemaker: a robot on a bike ---------------------------------------------------
+
+export interface RobotColors {
+  /** Body panels. */
+  metal: string;
+  /** Joints, far-side limbs, tyres. */
+  dark: string;
+  /** Frame, visor, antenna tip and chest light. */
+  accent: string;
+}
+
+/** Robot colours for a scene: light metal normally, all-neon where the scene is neon. */
+export function robotColors(accent: string, neon: boolean): RobotColors {
+  return neon
+    ? { metal: accent, dark: shade(accent, 0.5), accent: '#ffffff' }
+    : { metal: '#b9c3cd', dark: '#4a545f', accent };
+}
+
+/**
+ * Draws the pacemaker: a boxy robot with an antenna and a glowing visor. Same bike units
+ * and origin as drawRiderFigure.
+ */
+export function drawRobotFigure(ctx: CanvasRenderingContext2D, c: RobotColors, pose: RiderPose): void {
+  ctx.lineJoin = 'round';
+
+  const rear: Point = { x: 0, y: R };
+  const front: Point = { x: 1.0, y: R };
+  const bb: Point = { x: 0.42, y: 0.28 };
+  const seat: Point = { x: 0.27, y: 0.93 };
+  const head: Point = { x: 0.86, y: 0.9 };
+  const bar: Point = { x: 0.95, y: 0.98 };
+  const hip: Point = { x: 0.29, y: 1.0 };
+  const shoulder: Point = { x: 0.68, y: 1.36 };
+  const skull: Point = { x: 0.82, y: 1.56 };
+
+  const line = (a: Point, b: Point, w: number, color: string, cap: CanvasLineCap = 'butt') => {
+    ctx.lineCap = cap;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  };
+  const dot = (p: Point, r: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const wheelAt = (hub: Point) => {
+    for (let i = 0; i < 5; i++) {
+      const a = -pose.wheel + (i * Math.PI * 2) / 5;
+      line(hub, { x: hub.x + Math.cos(a) * (R - 0.04), y: hub.y + Math.sin(a) * (R - 0.04) }, 0.028, c.metal, 'round');
+    }
+    ctx.strokeStyle = c.dark;
+    ctx.lineWidth = 0.055;
+    ctx.beginPath();
+    ctx.arc(hub.x, hub.y, R - 0.027, 0, Math.PI * 2);
+    ctx.stroke();
+    dot(hub, 0.04, c.accent);
+  };
+
+  // segmented leg: square-ended struts with a joint at the knee
+  const leg = (a: number, far: boolean) => {
+    const pedal: Point = { x: bb.x + Math.cos(-a) * 0.17, y: bb.y + Math.sin(-a) * 0.17 };
+    const thigh = 0.45;
+    const shin = 0.47;
+    const dx = pedal.x - hip.x;
+    const dy = pedal.y - hip.y;
+    const dist = Math.min(thigh + shin - 0.001, Math.hypot(dx, dy));
+    const along = (thigh * thigh - shin * shin + dist * dist) / (2 * dist);
+    const off = Math.sqrt(Math.max(0, thigh * thigh - along * along));
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const k1: Point = { x: hip.x + ux * along + uy * off, y: hip.y + uy * along - ux * off };
+    const k2: Point = { x: hip.x + ux * along - uy * off, y: hip.y + uy * along + ux * off };
+    const knee = k1.x > k2.x ? k1 : k2;
+    const strut = far ? c.dark : c.metal;
+    line(bb, pedal, 0.03, c.dark, 'round');
+    line(knee, pedal, 0.075, strut);
+    line(hip, knee, 0.095, strut);
+    dot(knee, 0.055, far ? c.dark : c.accent);
+    ctx.fillStyle = c.dark;
+    ctx.fillRect(pedal.x - 0.06, pedal.y - 0.035, 0.19, 0.07);
+  };
+
+  leg(pose.crank + Math.PI, true);
+  wheelAt(rear);
+  wheelAt(front);
+  line(rear, bb, 0.035, c.accent, 'round');
+  line(rear, seat, 0.03, c.accent, 'round');
+  line(bb, seat, 0.04, c.accent, 'round');
+  line(bb, head, 0.045, c.accent, 'round');
+  line({ x: 0.3, y: 0.86 }, head, 0.04, c.accent, 'round');
+  line(head, front, 0.035, c.accent, 'round');
+  line(head, bar, 0.03, c.dark, 'round');
+  line({ x: 0.2, y: 0.95 }, { x: 0.36, y: 0.95 }, 0.04, c.dark, 'round');
+  leg(pose.crank, false);
+
+  // torso: a slab from hip to shoulder, with a chest light
+  line(hip, shoulder, 0.21, c.dark);
+  line({ x: hip.x + 0.012, y: hip.y + 0.011 }, { x: shoulder.x - 0.012, y: shoulder.y - 0.011 }, 0.17, c.metal);
+  dot({ x: (hip.x + shoulder.x) / 2 + 0.03, y: (hip.y + shoulder.y) / 2 + 0.02 }, 0.03, c.accent);
+  dot(hip, 0.06, c.dark);
+
+  // arm in two struts with an elbow
+  const elbow: Point = { x: 0.86, y: 1.13 };
+  line(shoulder, elbow, 0.07, c.metal);
+  line(elbow, bar, 0.06, c.metal);
+  dot(shoulder, 0.06, c.dark);
+  dot(elbow, 0.045, c.accent);
+  dot(bar, 0.045, c.dark);
+
+  // head: a box tipped forward, with a visor and an antenna
+  line(shoulder, skull, 0.05, c.dark);
+  ctx.save();
+  ctx.translate(skull.x, skull.y);
+  ctx.rotate(-0.28);
+  ctx.strokeStyle = c.dark;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 0.02;
+  ctx.beginPath();
+  ctx.moveTo(-0.05, 0.1);
+  ctx.lineTo(-0.08, 0.24);
+  ctx.stroke();
+  dot({ x: -0.08, y: 0.25 }, 0.03, c.accent);
+  ctx.fillStyle = c.metal;
+  ctx.beginPath();
+  ctx.roundRect(-0.13, -0.1, 0.26, 0.2, 0.035);
+  ctx.fill();
+  ctx.strokeStyle = c.dark;
+  ctx.lineWidth = 0.018;
+  ctx.stroke();
+  ctx.fillStyle = c.dark;
+  ctx.fillRect(0.0, -0.035, 0.125, 0.085);
+  ctx.fillStyle = c.accent;
+  ctx.fillRect(0.02, -0.015, 0.09, 0.045);
+  ctx.restore();
+}

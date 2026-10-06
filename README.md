@@ -7,6 +7,19 @@ on-screen buttons or the arrow keys, and download a FIT file at the end.
 Needs a browser with Web Bluetooth (Chrome or Edge on Android or desktop). Without a
 trainer it runs with simulated power.
 
+<p align="center">
+  <img src="img/preview.png" alt="Riding in the Tron scene on a phone, with power, speed, gear and shift buttons below the game" width="300">
+  &nbsp;
+  <img src="img/connect.png" alt="Home screen with device connection and the six circuits" width="300">
+</p>
+
+## Screenshots
+
+| | |
+| --- | --- |
+| **Customise your rider**<br><img src="img/rider_setup.png" alt="Rider editor with a live preview and colour pickers for jersey, pants, helmet, hair, skin, frame and tyres" width="420"> | **Ride summary and FIT download**<br><img src="img/results.png" alt="Summary screen with time, distance, power, speed, cadence, climbing and calories, and a Download FIT file button" width="320"> |
+| **Setup**<br><img src="img/settings.png" alt="Rider weight, bike weight, FTP, gear feel and hill difficulty settings" width="320"> | **Robot pacemaker and workouts**<br><img src="img/pacemaker.png" alt="A ride with the robot pacemaker a few metres ahead, and the workout step, time left and gap shown under the lap timer" width="260"> |
+
 ## Run
 
 ```sh
@@ -24,6 +37,16 @@ expose it over HTTPS, for example `cloudflared tunnel --url http://localhost:300
 On Linux desktop Chrome, Web Bluetooth may need
 `chrome://flags/#enable-experimental-web-platform-features`.
 
+## Deploy
+
+`bun run deploy` (or `deploy/deploy.sh [ssh-host] [path]`) runs the tests, builds, copies
+`dist/`, `server.ts` and `deploy/` to the server and restarts the `bikeboi` systemd user
+service. The reverse-proxy block is in `deploy/Caddyfile`.
+
+The build names scripts and styles after their content, and `server.ts` sends them with
+a one-year immutable cache header and the HTML with `no-cache`, so a CDN in front never
+serves an old release.
+
 ## Controls
 
 | Action | Keys | Other |
@@ -34,14 +57,33 @@ On Linux desktop Chrome, Web Bluetooth may need
 
 `?timescale=20` fast-forwards simulated rides, for testing.
 
+The app has an About page (`#about`, `src/ui/about.ts`) built from the screenshots in
+`img/`; first-time visitors get a one-time card pointing to it.
+
 ## Circuits and scenes
 
 Six circuits from 2 to 20 km (`src/ride/circuits/index.ts`), each with a default scene.
 The scene can be overridden on the home screen: Day, Sunset, Alpine, Rain, Midnight, Tron
 (`src/game/scenes.ts`).
 
+Climbs and descents are found from each circuit's profile and timed as segments, with a
+personal best per segment (`src/ride/segments.ts`); sprints are placed by hand in the
+circuit definition.
+
+A pacemaker (`src/ride/pacer.ts`) is a second run of the same simulation, stepped on the
+rider's clock, at fixed watts or following a workout; the ride screen shows the gap in
+metres and seconds. The pacemaker is drawn as a robot
+(`drawRobotFigure` in `src/game/rider.ts`). In hard mode the trainer is sent power targets
+(ERG) instead of gradients and the shift buttons scale the session; this is untested on
+real hardware. Workouts use the intervals.icu workout-builder text format
+(`src/ride/workout.ts` documents what is supported); built-ins and the rider's own are in
+`src/ride/workouts.ts`.
+
 The rider is customisable on the home screen (helmet, hair, skin, jersey, pants, frame,
 tyres, wheel style); the look lives in `src/game/rider.ts`.
+
+A ride is autosaved every second. If the tab dies, the start screen offers to resume it
+(`src/ride/resume.ts` rebuilds the state from the saved samples) or to save the FIT file.
 
 Calories are an estimate from pedalling work, assuming 24 % gross efficiency
 (`src/ride/energy.ts`).
@@ -65,4 +107,4 @@ more resistance at the same cadence. "Realistic" uses a force-balance model
 ## Licence
 
 AGPL-3.0, like Auuki. If you host a modified version, you must offer its source to the
-people using it; set `SOURCE_URL` in `src/ui/home.ts` to your repository.
+people using it; point `SOURCE_URL` in `src/ui/home.ts` at your repository.

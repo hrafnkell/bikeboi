@@ -1,6 +1,8 @@
 // A circuit is a closed loop described by an elevation profile.
 
 import type { SceneId } from '../game/scenes.ts';
+import { detectSegments, sprintSegments } from './segments.ts';
+import type { Segment, SegmentNames, SprintDef } from './segments.ts';
 
 export interface CircuitDef {
   id: string;
@@ -14,6 +16,10 @@ export interface CircuitDef {
   length: number;
   /** Control points [distance m, altitude m]; first at distance 0, ascending, all < length. */
   points: Array<[number, number]>;
+  /** Names for the climbs and descents found in the profile, in lap order. */
+  segmentNames?: SegmentNames;
+  /** Hand-placed sprint segments. */
+  sprints?: SprintDef[];
 }
 
 export interface Circuit extends CircuitDef {
@@ -27,6 +33,8 @@ export interface Circuit extends CircuitDef {
   ascent: number;
   /** Steepest gradient (absolute, fraction). */
   maxGrade: number;
+  /** Timed climbs, descents and sprints, in lap order. */
+  segments: Segment[];
 }
 
 const SAMPLE_STEP = 5; // metres, approximate
@@ -112,10 +120,18 @@ export function buildCircuit(def: CircuitDef): Circuit {
     return table[i] + (table[(i + 1) % count] - table[i]) * f;
   };
 
+  const altitudeAt = (distance: number) => sample(altitudes, distance);
+  const gradeAt = (distance: number) => sample(grades, distance);
+  const segments = [
+    ...detectSegments(altitudeAt, gradeAt, def.length, def.segmentNames),
+    ...sprintSegments(def.sprints ?? [], altitudeAt),
+  ].sort((a, b) => a.start - b.start);
+
   return {
     ...def,
-    altitudeAt: (distance) => sample(altitudes, distance),
-    gradeAt: (distance) => sample(grades, distance),
+    altitudeAt,
+    gradeAt,
+    segments,
     minAltitude,
     maxAltitude,
     ascent,

@@ -1,20 +1,28 @@
 // Canvas renderer: parallax scenery, terrain from the circuit profile, rider and ghost.
 
 import type { Circuit } from '../ride/circuit.ts';
-import { defaultRiderLook, drawRiderFigure, monoPaint, paintFor } from './rider.ts';
-import type { RiderLook, RiderPaint } from './rider.ts';
+import { defaultRiderLook, drawRiderFigure, drawRobotFigure, monoPaint, paintFor, robotColors } from './rider.ts';
+import type { RiderLook, RiderPaint, RobotColors } from './rider.ts';
 import { findScene } from './scenes.ts';
 import type { Palette, Scene as SceneStyle, SceneId } from './scenes.ts';
 import { hash, makeCamera, noise, toScreenX, toScreenY, visibleRange } from './world.ts';
 import type { Camera, Viewport } from './world.ts';
+
+export interface OtherRider {
+  kind: 'ghost' | 'pacer';
+  /** World distance (m). */
+  distance: number;
+  /** Short tag shown above the rider. */
+  label: string;
+}
 
 export interface Scene {
   /** Rider's world distance (m), interpolated. */
   distance: number;
   speed: number; // m/s
   cadence: number; // rpm
-  /** Ghost's world distance, or null when there is no ghost. */
-  ghostDistance: number | null;
+  /** Other riders on the road: the best-lap ghost and the pacemaker. */
+  others: OtherRider[];
   /** Seconds since the previous frame. */
   dt: number;
 }
@@ -23,6 +31,9 @@ export interface Scene {
 const SPRITE_SCALE = 2.2;
 const TREE_SLOT = 14; // metres between possible tree positions
 const MARKER_EVERY = 500; // metres between distance signs
+
+export const segmentColors = { climb: '#ffa94d', descent: '#74c0fc', sprint: '#b197fc' } as const;
+const segmentGlyph = { climb: '\u25B2', descent: '\u25BC', sprint: '\u26A1' } as const;
 
 export function gradeColor(grade: number): string {
   const g = grade * 100;
@@ -49,6 +60,7 @@ export class Renderer {
   private clock = 0;
   private riderPaint: RiderPaint;
   private ghostPaint: RiderPaint;
+  private robot: RobotColors;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -63,6 +75,7 @@ export class Renderer {
     this.palette = this.style.palette;
     this.riderPaint = paintFor(look, this.style.riderOverride);
     this.ghostPaint = monoPaint(look, this.style.ghost);
+    this.robot = robotColors(this.style.pacer, this.style.neon);
     this.resize();
     if (typeof ResizeObserver !== 'undefined') {
       this.observer = new ResizeObserver(() => this.resize());
@@ -114,15 +127,17 @@ export class Renderer {
     this.drawGround(cam);
     this.drawMarkers(cam, sprite);
 
-    if (scene.ghostDistance !== null) {
-      const gx = toScreenX(cam, scene.ghostDistance);
-      if (gx > -sprite * 2 && gx < width + sprite * 2) {
-        this.drawRider(cam, scene.ghostDistance, sprite, this.ghostCrank, this.wheelAngle, true);
+    scene.others.forEach((other, i) => {
+      const x = toScreenX(cam, other.distance);
+      // on screen while any part of the bike shows; otherwise an edge marker takes over
+      if (x > -sprite * 0.8 && x < width + sprite * 0.5) {
+        this.drawRider(cam, other.distance, sprite, this.ghostCrank + i * 1.3, this.wheelAngle, other.kind);
+        this.drawTag(cam, other, sprite);
       } else {
-        this.drawGhostArrow(cam, gx < 0 ? -1 : 1);
+        this.drawOffscreen(cam, other, x < 0 ? -1 : 1, i);
       }
-    }
-    this.drawRider(cam, scene.distance, sprite, this.crankAngle, this.wheelAngle, false);
+    });
+    this.drawRider(cam, scene.distance, sprite, this.crankAngle, this.wheelAngle, null);
     if (this.style.rain) this.drawRain(scene.speed);
     this.drawProfile(scene);
   }
@@ -395,6 +410,33 @@ export class Renderer {
       ctx.fillText(label, x, y - h - sprite * 0.16);
     }
 
+    // segment gates: a named flag at the start, a plain one at the end
+    const flag = (d: number, label: string, color: string) => {
+      const x = toScreenX(cam, d);
+      const y = toScreenY(cam, circuit.altitudeAt(d));
+      const h = sprite * 1.7;
+      ctx.fillStyle = '#e9ecef';
+      ctx.fillRect(x - 1.5, y - h, 3, h);
+      ctx.font = `700 ${Math.max(10, sprite * 0.27)}px system-ui, sans-serif`;
+      const w = ctx.measureText(label).width + 12;
+      const fh = sprite * 0.44;
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 1.5, y - h, w, fh);
+      ctx.fillStyle = '#10151c';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + 7.5, y - h + fh / 2 + 0.5);
+    };
+    for (const s of circuit.segments) {
+      const color = segmentColors[s.type];
+      for (let k = Math.floor((d0 - s.start - s.length - 30) / length); k * length + s.start <= d1 + 30; k++) {
+        const begin = k * length + s.start;
+        if (begin >= d0 - 30) flag(begin, `${segmentGlyph[s.type]} ${s.name}`, color);
+        const end = begin + s.length;
+        if (end >= d0 - 30 && end <= d1 + 30) flag(end, 'END', color);
+      }
+    }
+
     // start / finish arch at every lap line
     for (let d = Math.ceil((d0 - 3) / length) * length; d <= d1 + 3; d += length) {
       const x = toScreenX(cam, d);
@@ -414,7 +456,7 @@ export class Renderer {
   }
 
   private drawRider(
-    cam: Camera, distance: number, s: number, crank: number, wheel: number, ghost: boolean,
+    cam: Camera, distance: number, s: number, crank: number, wheel: number, other: OtherRider['kind'] | null,
   ): void {
     const { ctx, circuit } = this;
     const half = (0.5 * s) / cam.pxPerM;
@@ -428,19 +470,49 @@ export class Renderer {
     ctx.translate(xr, yr);
     ctx.rotate(angle);
     ctx.scale(s, -s); // bike units: metres, x forward, y up, origin at the rear contact patch
-    if (ghost) ctx.globalAlpha = this.style.neon ? 0.6 : 0.4;
-    drawRiderFigure(ctx, ghost ? this.ghostPaint : this.riderPaint, {
-      crank, wheel, headlight: this.style.headlight && !ghost,
-    });
+    if (other === 'pacer') {
+      // the pacemaker is a solid robot, not a see-through copy of the rider
+      drawRobotFigure(ctx, this.robot, { crank, wheel, headlight: false });
+    } else {
+      if (other === 'ghost') ctx.globalAlpha = this.style.neon ? 0.65 : 0.4;
+      drawRiderFigure(ctx, other ? this.ghostPaint : this.riderPaint, {
+        crank, wheel, headlight: this.style.headlight && !other,
+      });
+    }
     ctx.restore();
   }
 
-  private drawGhostArrow(cam: Camera, side: -1 | 1): void {
+  private colorOf(kind: OtherRider['kind']): string {
+    return kind === 'ghost' ? this.style.ghost : this.style.pacer;
+  }
+
+  /** Name tag above another rider, so ghost and pacemaker can be told apart. */
+  private drawTag(cam: Camera, other: OtherRider, sprite: number): void {
+    const { ctx, circuit } = this;
+    const x = toScreenX(cam, other.distance);
+    const y = toScreenY(cam, circuit.altitudeAt(other.distance)) - sprite * 1.95;
+    ctx.font = `600 ${Math.max(10, sprite * 0.26)}px system-ui, sans-serif`;
+    const w = ctx.measureText(other.label).width + 10;
+    const h = Math.max(14, sprite * 0.4);
+    ctx.fillStyle = 'rgba(10,16,24,0.7)';
+    ctx.beginPath();
+    ctx.roundRect(x - w / 2, y - h, w, h, 4);
+    ctx.fill();
+    ctx.fillStyle = this.colorOf(other.kind);
+    ctx.fillRect(x - w / 2, y - 2, w, 2);
+    ctx.fillStyle = '#e9eef3';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(other.label, x, y - h / 2);
+  }
+
+  /** Edge marker for a rider who is out of view, ahead or behind. */
+  private drawOffscreen(cam: Camera, other: OtherRider, side: -1 | 1, index: number): void {
     const { ctx, viewport } = this;
     const x = side < 0 ? 16 : viewport.width - 16;
-    const y = cam.anchorY - viewport.height * 0.12;
-    ctx.fillStyle = this.style.ghost;
-    ctx.globalAlpha = 0.85;
+    const y = cam.anchorY - viewport.height * 0.12 - index * 26;
+    ctx.fillStyle = this.colorOf(other.kind);
+    ctx.globalAlpha = 0.9;
     ctx.beginPath();
     ctx.moveTo(x + side * 8, y);
     ctx.lineTo(x - side * 6, y - 10);
@@ -448,6 +520,15 @@ export class Renderer {
     ctx.closePath();
     ctx.fill();
     ctx.globalAlpha = 1;
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.textAlign = side < 0 ? 'left' : 'right';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(10,16,24,0.75)';
+    ctx.strokeText(other.label, x - side * 12, y);
+    ctx.fillStyle = '#e9eef3';
+    ctx.fillText(other.label, x - side * 12, y);
   }
 
   /** A bright line with a soft halo, cheaper than canvas shadows. */
@@ -516,6 +597,14 @@ export class Renderer {
         p.fillStyle = gradeColor(circuit.gradeAt(d));
         p.fillRect(pad + i, h - pad - bar, 1.2, bar);
       }
+      // segments underline the stretch they cover
+      for (const s of circuit.segments) {
+        p.fillStyle = segmentColors[s.type];
+        const from = pad + (s.start / circuit.length) * n;
+        const to = from + (s.length / circuit.length) * n;
+        p.fillRect(from, h - pad + 1.5, Math.min(to, pad + n) - from, 2.5);
+        if (to > pad + n) p.fillRect(pad, h - pad + 1.5, to - pad - n, 2.5);
+      }
       this.profile = c;
       this.profileKey = key;
     }
@@ -535,7 +624,7 @@ export class Renderer {
       ctx.fill();
       ctx.stroke();
     };
-    if (scene.ghostDistance !== null) dot(scene.ghostDistance, '#a5d8ff', 3.5);
+    for (const other of scene.others) dot(other.distance, this.colorOf(other.kind), 3.5);
     dot(scene.distance, '#ffffff', 4.5);
   }
 }

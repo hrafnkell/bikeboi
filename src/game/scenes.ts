@@ -36,6 +36,7 @@ export interface Scene {
   /** Colours forced on the rider in this scene; null uses the rider's own look. */
   riderOverride: PaintOverride | null;
   ghost: string;
+  pacer: string;
 }
 
 const natural = { outline: '#ffffff', accent: '#ffffff' };
@@ -48,7 +49,7 @@ export const scenes: Record<SceneId, Scene> = {
       ground: '#6a994e', groundDeep: '#274c2b', road: '#44474f', dash: 'rgba(255,255,255,0.55)',
       tree: '#386641', trunk: '#5b4332', ...natural,
     },
-    riderOverride: null, ghost: '#a5d8ff',
+    riderOverride: null, ghost: '#a5d8ff', pacer: '#ffd43b',
   },
   sunset: {
     id: 'sunset', name: 'Sunset', sky: 'sun', neon: false, rain: false, stars: false, headlight: false,
@@ -57,7 +58,7 @@ export const scenes: Record<SceneId, Scene> = {
       ground: '#4f772d', groundDeep: '#1f3318', road: '#3a3d45', dash: 'rgba(255,255,255,0.55)',
       tree: '#31572c', trunk: '#4a3728', ...natural,
     },
-    riderOverride: null, ghost: '#a5d8ff',
+    riderOverride: null, ghost: '#a5d8ff', pacer: '#ffd43b',
   },
   alpine: {
     id: 'alpine', name: 'Alpine', sky: 'sun', neon: false, rain: false, stars: false, headlight: false,
@@ -66,7 +67,7 @@ export const scenes: Record<SceneId, Scene> = {
       ground: '#7a8b5a', groundDeep: '#353f2b', road: '#40434a', dash: 'rgba(255,255,255,0.55)',
       tree: '#2f5241', trunk: '#4d3b2c', ...natural,
     },
-    riderOverride: null, ghost: '#a5d8ff',
+    riderOverride: null, ghost: '#a5d8ff', pacer: '#ffd43b',
   },
   rain: {
     id: 'rain', name: 'Rain', sky: 'overcast', neon: false, rain: true, stars: false, headlight: false,
@@ -75,7 +76,7 @@ export const scenes: Record<SceneId, Scene> = {
       ground: '#48683f', groundDeep: '#1a281c', road: '#2a2d34', dash: 'rgba(255,255,255,0.4)',
       tree: '#2b4a34', trunk: '#3a2e25', ...natural,
     },
-    riderOverride: null, ghost: '#a5d8ff',
+    riderOverride: null, ghost: '#a5d8ff', pacer: '#ffd43b',
   },
   midnight: {
     id: 'midnight', name: 'Midnight', sky: 'moon', neon: false, rain: false, stars: true, headlight: true,
@@ -84,7 +85,7 @@ export const scenes: Record<SceneId, Scene> = {
       ground: '#12301f', groundDeep: '#040906', road: '#1a1d25', dash: 'rgba(255,255,255,0.5)',
       tree: '#0a2017', trunk: '#17120e', ...natural,
     },
-    riderOverride: null, ghost: '#a5d8ff',
+    riderOverride: null, ghost: '#a5d8ff', pacer: '#ffd43b',
   },
   tron: {
     id: 'tron', name: 'Tron', sky: 'synth', neon: true, rain: false, stars: true, headlight: false,
@@ -99,6 +100,7 @@ export const scenes: Record<SceneId, Scene> = {
       helmet: '#22d3ee', hair: '#22d3ee', parts: '#67e8f9', shoe: '#e0fbff',
     },
     ghost: '#ff9f1c',
+    pacer: '#a3e635',
   },
 };
 

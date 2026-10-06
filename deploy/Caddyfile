@@ -1,0 +1,6 @@
+# Add to /etc/caddy/Caddyfile on elmer, then run: sudo systemctl reload caddy
+# Cache headers are set by the app (server.ts): hashed assets forever, HTML never.
+bikeboi.hlekkir.is {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3070
+}

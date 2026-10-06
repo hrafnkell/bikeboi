@@ -25,6 +25,30 @@ const model: PhysicsModel = (Model as (args: object) => PhysicsModel)({
   CdA: CDA, rho: RHO, crr: CRR, drivetrainLoss: 0.02,
 });
 
+/**
+ * Seconds needed to ride from one distance to another at a steady power, starting at the
+ * given speed. Infinity if the rider would stall first.
+ */
+export function projectTime(
+  circuit: Circuit, mass: number, power: number, speed: number, from: number, to: number,
+): number {
+  const dt = 1;
+  let d = from;
+  let v = Math.max(0, speed);
+  let t = 0;
+  for (let i = 0; i < 7200 && d < to; i++) {
+    const out = model.virtualSpeedCF({ power: Math.max(0, power), slope: circuit.gradeAt(d), mass, dt, speed: v });
+    const next = Number.isFinite(out.speed) ? Math.max(0, out.speed) : 0;
+    const dx = ((v + next) / 2) * dt;
+    if (dx <= 0.01) return Infinity;
+    if (d + dx >= to) return t + ((to - d) / dx) * dt;
+    d += dx;
+    v = next;
+    t += dt;
+  }
+  return d >= to ? t : Infinity;
+}
+
 export class RideSim {
   /** Ride time in seconds; only advances while moving. */
   time = 0;
@@ -39,13 +63,17 @@ export class RideSim {
   /** True while the rider is pedalling or still rolling. */
   moving = false;
 
-  private prevDistance = 0;
+  /** Distance and ride time at the start of the latest step. */
+  prevDistance = 0;
+  prevTime = 0;
   private acc = 0;
 
   constructor(
     readonly circuit: Circuit,
     public mass: number,
     private onLap?: (lap: LapResult) => void,
+    /** Called after every physics step in which the rider moved. */
+    private onStep?: (sim: RideSim) => void,
   ) {}
 
   /** Advance by real elapsed seconds using the latest power. Returns the number of steps taken. */
@@ -78,6 +106,7 @@ export class RideSim {
     if (!this.moving) return;
 
     const dx = speed * STEP;
+    this.prevTime = this.time;
     const before = this.circuit.altitudeAt(this.distance);
     this.distance += dx;
     this.time += STEP;
@@ -99,6 +128,25 @@ export class RideSim {
       this.lapStartTime = endTime;
       this.onLap?.(lap);
     }
+    this.onStep?.(this);
+  }
+
+  /** Put the rider back where an interrupted ride left off, at a standstill. */
+  restore(state: {
+    time: number; distance: number; ascent: number; work: number; laps: LapResult[]; lapStartTime: number;
+  }): void {
+    this.time = state.time;
+    this.distance = state.distance;
+    this.prevDistance = state.distance;
+    this.prevTime = state.time;
+    this.ascent = state.ascent;
+    this.work = state.work;
+    this.laps = state.laps.map((l) => ({ ...l }));
+    this.lapIndex = this.laps.length;
+    this.lapStartTime = state.lapStartTime;
+    this.speed = 0;
+    this.moving = false;
+    this.acc = 0;
   }
 
   get lapTime(): number {
@@ -107,6 +155,11 @@ export class RideSim {
 
   get lapDistance(): number {
     return this.distance - this.lapIndex * this.circuit.length;
+  }
+
+  /** How far the clock is into the next physics step, 0..1. */
+  get alpha(): number {
+    return this.moving ? this.acc / STEP : 1;
   }
 
   /** Distance interpolated between physics steps, for smooth rendering. */

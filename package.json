@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot server.ts",
+    "start": "NODE_ENV=production bun server.ts",
+    "deploy": "deploy/deploy.sh",
     "build": "bun build ./index.html --outdir dist --minify && cp -r public/. dist/",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

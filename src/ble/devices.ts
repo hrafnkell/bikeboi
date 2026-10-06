@@ -13,7 +13,7 @@ import type { Unsubscribe } from '../state.ts';
 import { CW } from '../types.ts';
 import type { DeviceInfo, DeviceKind, SimParams } from '../types.ts';
 import { ClickDevice } from './click.ts';
-import { createSimSender } from './sim-sender.ts';
+import { createSimSender, createPowerSender, clampPower } from './sim-sender.ts';
 
 // Minimal shapes of the borrowed JS this file relies on.
 interface VendorControlPoint {
@@ -25,6 +25,8 @@ interface VendorTrainerService {
   characteristics?: { control?: VendorControlPoint };
   /** grade in percent, windSpeed in m/s, windResistance in kg/m */
   setSimulation(args: { grade: number; windSpeed: number; crr: number; windResistance: number }): unknown;
+  /** ERG: hold this power whatever the cadence. */
+  setPowerTarget(args: { power: number }): unknown;
   /** FE-C only */
   setUserData?: unknown;
   setWindResistance?(args?: { windResistance?: number }): unknown;
@@ -122,7 +124,10 @@ function trainerService(): VendorTrainerService | null {
   return trainer && trainer.isStarted() ? trainer : null;
 }
 
+/** What the trainer was last asked to do; re-sent after a reconnect. The last write decides the trainer's mode. */
 let lastSim: SimParams | null = null;
+let lastPower: number | null = null;
+let controlMode: 'sim' | 'erg' = 'sim';
 
 const simSender = createSimSender({
   isReady() {
@@ -139,6 +144,19 @@ const simSender = createSimSender({
       crr: p.crr,
       windResistance: p.cw,
     });
+  },
+});
+
+const powerSender = createPowerSender({
+  isReady() {
+    const trainer = trainerService();
+    if (!trainer) return false;
+    return trainer.characteristics?.control?.isReady() ?? true;
+  },
+  write(watts) {
+    const trainer = trainerService();
+    if (!trainer) return false;
+    return trainer.setPowerTarget({ power: watts });
   },
 });
 
@@ -261,7 +279,9 @@ function onConnected(slot: Slot, gen: number, c: VendorConnectable): void {
     const isFec = trainer.setUserData !== undefined;
     if (isFec) void trainer.setWindResistance?.({ windResistance: Math.min(lastSim?.cw ?? CW, 1.86) });
     simSender.reset();
-    if (lastSim) simSender.set(lastSim);
+    powerSender.reset();
+    if (controlMode === 'erg' && lastPower !== null) powerSender.set(lastPower);
+    else if (lastSim) simSender.set(lastSim);
   }
 }
 
@@ -273,6 +293,7 @@ function onDropped(slot: Slot, gen: number): void {
   if (slot.kind === 'trainer') {
     stopWatchdog();
     simSender.stop();
+    powerSender.stop();
   }
   update(slot.kind, { status: slot.wanted ? 'connecting' : 'disconnected', controllable: false });
   scheduleRetry(slot, gen);
@@ -341,6 +362,7 @@ async function disconnectVendor(kind: VendorKind): Promise<void> {
   if (kind === 'trainer') {
     stopWatchdog();
     simSender.stop();
+    powerSender.stop();
   }
   update(kind, { status: 'disconnected', controllable: false, battery: null });
 
@@ -405,7 +427,27 @@ export const devices = {
   /** Latest value wins. Remembered and re-sent after a (re)connect; does nothing without a controllable trainer. */
   setSim(params: SimParams): void {
     lastSim = { ...params };
+    if (controlMode !== 'sim') {
+      // coming back from ERG: the trainer must be told again even if the gradient is unchanged
+      controlMode = 'sim';
+      powerSender.stop();
+      simSender.reset();
+    }
     if (trainerService()) simSender.set(params);
+  },
+
+  /**
+   * ERG: ask the trainer to hold this power. Latest value wins; remembered and re-sent after
+   * a (re)connect. Call setSim to go back to simulating the road.
+   */
+  setPower(watts: number): void {
+    lastPower = clampPower(watts);
+    if (controlMode !== 'erg') {
+      controlMode = 'erg';
+      simSender.stop();
+      powerSender.reset();
+    }
+    if (trainerService()) powerSender.set(lastPower);
   },
 
   /**

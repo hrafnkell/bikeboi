@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clampSim, createSimSender } from '../src/ble/sim-sender.ts';
+import { clampPower, clampSim, createPowerSender, createSimSender } from '../src/ble/sim-sender.ts';
 import { CRR, CW } from '../src/types.ts';
 import type { SimParams } from '../src/types.ts';
 
@@ -213,5 +213,43 @@ describe('createSimSender', () => {
     clock.advance(1000);
     expect(writes).toEqual([]);
     expect(clock.pending()).toBe(0);
+  });
+});
+
+describe('power sender', () => {
+  test('clamps to whole watts in range', () => {
+    expect(clampPower(199.6)).toBe(200);
+    expect(clampPower(-20)).toBe(0);
+    expect(clampPower(99999)).toBe(2000);
+    expect(clampPower(NaN)).toBe(0);
+  });
+
+  test('sends the latest target once the trainer is free, and never repeats one', () => {
+    const clock = fakeClock();
+    let ready = false;
+    const sent: number[] = [];
+    const sender = createPowerSender({
+      isReady: () => ready, write: (w) => void sent.push(w),
+      now: clock.now, setTimer: clock.setTimer, clearTimer: clock.clearTimer,
+    });
+    sender.set(180);
+    sender.set(200);
+    sender.set(240.4);
+    clock.advance(500);
+    expect(sent).toEqual([]);
+    ready = true;
+    clock.advance(200);
+    expect(sent).toEqual([240]);
+    sender.set(240);
+    clock.advance(1000);
+    expect(sent).toEqual([240]);
+    sender.set(250);
+    clock.advance(1000);
+    expect(sent).toEqual([240, 250]);
+    // after a reset (reconnect, or coming back from road simulation) the same value is sent again
+    sender.reset();
+    sender.set(250);
+    clock.advance(1000);
+    expect(sent).toEqual([240, 250, 250]);
   });
 });

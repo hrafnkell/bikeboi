@@ -40,12 +40,11 @@ function sameOnWire(a: SimParams, b: SimParams): boolean {
   );
 }
 
-export interface SimSenderOptions {
+export interface SenderOptions<T> {
   /** True when the trainer can take a write right now. */
   isReady(): boolean;
   /** Performs the write. Returning (or resolving to) `false`, or throwing, counts as a failure and is retried. */
-  write(p: SimParams): unknown;
-  limits?: SimLimits;
+  write(value: T): unknown;
   /** How often to re-check a busy control point, ms. */
   pollMs?: number;
   /** Minimum spacing between writes, ms. */
@@ -55,9 +54,9 @@ export interface SimSenderOptions {
   clearTimer?: (handle: unknown) => void;
 }
 
-export interface SimSender {
+export interface Sender<T> {
   /** Queue a value; replaces anything still pending. */
-  set(p: SimParams): void;
+  set(value: T): void;
   /** Try to deliver the pending value now, ignoring the minimum spacing. */
   flush(): void;
   /** Forget what was last delivered so the next `set` is always written (use after a reconnect). */
@@ -66,16 +65,21 @@ export interface SimSender {
   stop(): void;
 }
 
-export function createSimSender(opts: SimSenderOptions): SimSender {
-  const limits = opts.limits ?? DEFAULT_SIM_LIMITS;
+/**
+ * Delivers the latest value to a control point that can be busy: values set while it is
+ * busy replace each other, identical values are not re-sent, and failures are retried.
+ */
+function createLatestSender<T>(
+  opts: SenderOptions<T>, prepare: (value: T) => T, same: (a: T, b: T) => boolean,
+): Sender<T> {
   const pollMs = opts.pollMs ?? 100;
   const minIntervalMs = opts.minIntervalMs ?? 250;
   const now = opts.now ?? Date.now;
   const setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   const clearTimer = opts.clearTimer ?? ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>));
 
-  let pending: SimParams | null = null;
-  let delivered: SimParams | null = null;
+  let pending: { value: T } | null = null;
+  let delivered: { value: T } | null = null;
   let lastWriteAt = -Infinity;
   let timer: unknown = null;
   let epoch = 0;
@@ -95,7 +99,7 @@ export function createSimSender(opts: SimSenderOptions): SimSender {
     }, ms);
   }
 
-  function failed(p: SimParams, atEpoch: number): void {
+  function failed(p: { value: T }, atEpoch: number): void {
     if (atEpoch !== epoch) return;
     if (delivered === p) delivered = null;
     if (pending === null) pending = p;
@@ -123,7 +127,7 @@ export function createSimSender(opts: SimSenderOptions): SimSender {
 
     let result: unknown;
     try {
-      result = opts.write(p);
+      result = opts.write(p.value);
     } catch {
       result = false;
     }
@@ -141,14 +145,14 @@ export function createSimSender(opts: SimSenderOptions): SimSender {
   }
 
   return {
-    set(p) {
-      const next = clampSim(p, limits);
-      if (delivered !== null && sameOnWire(next, delivered)) {
+    set(value) {
+      const next = prepare(value);
+      if (delivered !== null && same(next, delivered.value)) {
         pending = null;
         cancelTimer();
         return;
       }
-      pending = next;
+      pending = { value: next };
       deliver(false);
     },
     flush() {
@@ -164,4 +168,28 @@ export function createSimSender(opts: SimSenderOptions): SimSender {
       cancelTimer();
     },
   };
+}
+
+export interface SimSenderOptions extends SenderOptions<SimParams> {
+  limits?: SimLimits;
+}
+
+export type SimSender = Sender<SimParams>;
+
+export function createSimSender(opts: SimSenderOptions): SimSender {
+  const limits = opts.limits ?? DEFAULT_SIM_LIMITS;
+  return createLatestSender(opts, (p) => clampSim(p, limits), sameOnWire);
+}
+
+export const MAX_TARGET_POWER = 2000;
+
+/** Whole watts within what a trainer can be asked for. */
+export function clampPower(watts: number): number {
+  if (!Number.isFinite(watts)) return 0;
+  return Math.min(MAX_TARGET_POWER, Math.max(0, Math.round(watts)));
+}
+
+/** Sender for ERG power targets, in watts. */
+export function createPowerSender(opts: SenderOptions<number>): Sender<number> {
+  return createLatestSender(opts, clampPower, (a, b) => a === b);
 }

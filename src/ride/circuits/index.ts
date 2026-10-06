@@ -8,6 +8,7 @@ const defs: CircuitDef[] = [
     description: 'Short and nearly flat. Good for sprints and warm-ups.',
     seed: 11,
     scene: 'sunset',
+    sprints: [{ name: 'Quayside Sprint', start: 900, length: 300 }],
     length: 2000,
     points: [
       [0, 10],
@@ -23,6 +24,10 @@ const defs: CircuitDef[] = [
     description: 'Constant ups and downs with one longer drag.',
     seed: 23,
     scene: 'day',
+    segmentNames: {
+      climbs: ['The Kicker', 'Short Rise', 'Home Drag'],
+      descents: ['First Drop', 'The Plunge', 'Back Dip'],
+    },
     length: 5000,
     points: [
       [0, 40],
@@ -42,6 +47,7 @@ const defs: CircuitDef[] = [
     description: 'One proper climb, one fast descent.',
     seed: 37,
     scene: 'alpine',
+    segmentNames: { climbs: ['The Wall'], descents: ['The Freefall'] },
     length: 6000,
     points: [
       [0, 100],
@@ -60,6 +66,11 @@ const defs: CircuitDef[] = [
     description: 'Ten rolling kilometres with nothing steep.',
     seed: 53,
     scene: 'rain',
+    segmentNames: {
+      climbs: ['Lighthouse Rise', 'Cliff Road', 'Dune Bump'],
+      descents: ['Cove Dip', 'Cliff Descent', 'Beach Run'],
+    },
+    sprints: [{ name: 'Promenade Sprint', start: 9000, length: 300 }],
     length: 10000,
     points: [
       [0, 5],
@@ -82,6 +93,10 @@ const defs: CircuitDef[] = [
     description: 'A long steady drag up the valley, then a rolling run home.',
     seed: 71,
     scene: 'midnight',
+    segmentNames: {
+      climbs: ['Valley Drag'],
+      descents: ['Ridge Drop', 'The Long Way Down', 'Run Home'],
+    },
     length: 15000,
     points: [
       [0, 200],
@@ -105,6 +120,10 @@ const defs: CircuitDef[] = [
     description: 'Twenty kilometres over two big climbs.',
     seed: 89,
     scene: 'tron',
+    segmentNames: {
+      climbs: ['First Pass', 'High Pass'],
+      descents: ['First Descent', 'The Big Descent'],
+    },
     length: 20000,
     points: [
       [0, 300],

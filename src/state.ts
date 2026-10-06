@@ -43,6 +43,7 @@ import type { RiderLook } from './game/rider.ts';
 import type { SceneId } from './game/scenes.ts';
 
 export type GearMode = 'model' | 'offset';
+export type PacerMode = 'off' | 'steady' | 'workout';
 
 export interface Settings {
   riderMass: number; // kg
@@ -55,6 +56,9 @@ export interface Settings {
   /** 'auto' uses each circuit's own scene. */
   scene: SceneId | 'auto';
   rider: RiderLook;
+  /** A virtual rider holding steady watts to chase. */
+  /** hard: the trainer holds the pacemaker's power (ERG) instead of simulating the road. */
+  pacer: { mode: PacerMode; power: number; workoutId: string; hard: boolean };
 }
 
 export const defaultSettings: Settings = {
@@ -66,6 +70,7 @@ export const defaultSettings: Settings = {
   lastCircuitId: 'rollers',
   scene: 'auto',
   rider: { ...defaultRiderLook },
+  pacer: { mode: 'off', power: 200, workoutId: 'builtin:threshold-3x10', hard: false },
 };
 
 const SETTINGS_KEY = 'bikeboi:settings';
@@ -75,12 +80,26 @@ function loadSettings(): Settings {
     const raw = globalThis.localStorage?.getItem(SETTINGS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...defaultSettings, ...parsed, rider: sanitizeLook(parsed?.rider) };
+      const power = Number(parsed?.pacer?.power);
+      return {
+        ...defaultSettings,
+        ...parsed,
+        rider: sanitizeLook(parsed?.rider),
+        pacer: {
+          // "enabled" is how an earlier version stored a steady pacemaker
+          mode: ['off', 'steady', 'workout'].includes(parsed?.pacer?.mode)
+            ? parsed.pacer.mode
+            : parsed?.pacer?.enabled === true ? 'steady' : 'off',
+          power: Number.isFinite(power) ? Math.min(600, Math.max(50, Math.round(power))) : 200,
+          workoutId: typeof parsed?.pacer?.workoutId === 'string' ? parsed.pacer.workoutId : defaultSettings.pacer.workoutId,
+          hard: parsed?.pacer?.hard === true,
+        },
+      };
     }
   } catch {
     // unreadable storage falls back to defaults
   }
-  return { ...defaultSettings, rider: { ...defaultRiderLook } };
+  return { ...defaultSettings, rider: { ...defaultRiderLook }, pacer: { ...defaultSettings.pacer } };
 }
 
 export const settings: Settings = loadSettings();

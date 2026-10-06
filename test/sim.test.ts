@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { buildCircuit } from '../src/ride/circuit.ts';
-import { RideSim, STEP } from '../src/ride/sim.ts';
+import { RideSim, STEP, projectTime } from '../src/ride/sim.ts';
 import type { LapResult } from '../src/ride/sim.ts';
 
 const flat = buildCircuit({
@@ -84,6 +84,23 @@ describe('ride sim', () => {
     expect(sim.renderDistance).toBeLessThanOrEqual(sim.distance);
     // a long frame gap is capped
     expect(sim.advance(30, 200)).toBeLessThanOrEqual(Math.ceil(1 / STEP) + 1);
+  });
+
+  test('projected time matches what the sim then does', () => {
+    const sim = new RideSim(hill, 84);
+    ride(sim, 60, 220);
+    const from = sim.distance;
+    const to = from + 600;
+    const predicted = projectTime(hill, 84, 220, sim.speed, from, to);
+    const t0 = sim.time;
+    while (sim.distance < to) sim.step(220);
+    expect(predicted).toBeGreaterThan(30);
+    expect(Math.abs(predicted - (sim.time - t0))).toBeLessThan(3);
+  });
+
+  test('projection gives up when the rider would stall', () => {
+    expect(projectTime(hill, 84, 0, 0, 100, 600)).toBe(Infinity);
+    expect(projectTime(flat, 84, 200, 8, 100, 100)).toBe(0);
   });
 
   test('ignores bad power values', () => {

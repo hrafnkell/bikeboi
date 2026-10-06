@@ -66,3 +66,14 @@ describe('rider look', () => {
     expect(p.pantsLength).toBe('tights');
   });
 });
+
+describe('robot pacemaker', () => {
+  test('uses light metal with the scene accent normally, and all-neon in neon scenes', () => {
+    const { robotColors } = require('../src/game/rider.ts');
+    expect(robotColors('#ffd43b', false)).toEqual({ metal: '#b9c3cd', dark: '#4a545f', accent: '#ffd43b' });
+    const neon = robotColors('#a3e635', true);
+    expect(neon.metal).toBe('#a3e635');
+    expect(neon.accent).toBe('#ffffff');
+    expect(neon.dark).toBe(shade('#a3e635', 0.5));
+  });
+});
