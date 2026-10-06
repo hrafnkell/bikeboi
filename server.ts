@@ -6,13 +6,16 @@ const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOST ?? (production ? '127.0.0.1' : '0.0.0.0');
 const root = new URL('./', import.meta.url);
 
-/** Manifest and icons live outside the bundle, at fixed paths. */
+/** Files in public/ live outside the bundle, at fixed paths: manifest, icons, share image, robots. */
+const PUBLIC_FILES: Record<string, string> = {
+  '/manifest.webmanifest': 'application/manifest+json',
+  '/robots.txt': 'text/plain; charset=utf-8',
+  '/og.png': 'image/png',
+};
+
 function publicFile(dir: URL, pathname: string): Response | null {
-  if (pathname === '/manifest.webmanifest') {
-    return new Response(Bun.file(new URL('manifest.webmanifest', dir)), {
-      headers: { 'content-type': 'application/manifest+json' },
-    });
-  }
+  const type = PUBLIC_FILES[pathname];
+  if (type) return new Response(Bun.file(new URL(`.${pathname}`, dir)), { headers: { 'content-type': type } });
   const icon = /^\/icons\/([a-z0-9-]+\.png)$/.exec(pathname);
   if (icon) return new Response(Bun.file(new URL(`icons/${icon[1]}`, dir)));
   return null;
@@ -28,6 +31,8 @@ async function serveDev() {
     routes: {
       '/': index,
       '/manifest.webmanifest': (req) => publicFile(publicDir, new URL(req.url).pathname)!,
+      '/robots.txt': (req) => publicFile(publicDir, new URL(req.url).pathname)!,
+      '/og.png': (req) => publicFile(publicDir, new URL(req.url).pathname)!,
       '/icons/:name': (req) =>
         publicFile(publicDir, new URL(req.url).pathname) ?? new Response('Not found', { status: 404 }),
     },

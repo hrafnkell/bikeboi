@@ -5,11 +5,14 @@ import { renderSummary } from './ui/summary.ts';
 import type { Circuit } from './ride/circuit.ts';
 import type { SavedRide } from './ride/ride-store.ts';
 
-// The manifest and its icons are served as plain files (see public/), outside the bundle.
-const manifest = document.createElement('link');
-manifest.rel = 'manifest';
-manifest.href = '/manifest.webmanifest';
-document.head.append(manifest);
+// The manifest and its icons are served as plain files (see public/), outside the bundle,
+// so their links are added here rather than in index.html, which the bundler would try to resolve.
+for (const [rel, href] of [['manifest', '/manifest.webmanifest'], ['apple-touch-icon', '/icons/icon-192.png']]) {
+  const link = document.createElement('link');
+  link.rel = rel;
+  link.href = href;
+  document.head.append(link);
+}
 
 const root = document.getElementById('app')!;
 let cleanup: () => void = () => {};
