@@ -69,7 +69,9 @@ serves an old release.
 | Pause | Space | pause button, switching away from the tab |
 | Simulated power | Left / Right | slider (only without a trainer) |
 
-`?timescale=20` fast-forwards simulated rides, for testing.
+Dev switches, honoured only on localhost (`src/dev.ts`): `?timescale=20` fast-forwards
+simulated rides; `?count=1` makes a simulated ride count like a real one (bests kept,
+saved to the account), so the real-ride paths can be tested without a trainer.
 
 The app has an About page (`#about`, `src/ui/about.ts`) built from the screenshots in
 `img/`; first-time visitors get a one-time card pointing to it.

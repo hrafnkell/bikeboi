@@ -10,6 +10,7 @@ import type { OtherRider } from '../game/renderer.ts';
 import { clamp, fmtClock, fmtKm, fmtLap } from '../format.ts';
 import { bindKeyboard } from '../input.ts';
 import type { Circuit } from '../ride/circuit.ts';
+import { devCountSimulated, devTimeScale } from '../dev.ts';
 import { kcalFromJoules } from '../ride/energy.ts';
 import {
   GEAR_COUNT, REFERENCE_GEAR, cadenceFor, clampGear, gearFactor, gearedSimGrade, offsetSimGrade,
@@ -112,10 +113,10 @@ export function createRideController(
   onEnd: (o: RideOutcome) => void,
 ): RideController {
   const simulated = devices.info('trainer').status !== 'connected';
-  // dev aid: ?timescale=20 fast-forwards simulated rides
-  const timeScale = simulated
-    ? clamp(Math.round(Number(new URLSearchParams(location.search).get('timescale')) || 1), 1, 60)
-    : 1;
+  const timeScale = simulated ? devTimeScale() : 1;
+  // a simulated ride proves nothing, so it sets no bests and is not saved; on localhost
+  // ?count=1 lifts that, so the real-ride paths can be tested without a trainer
+  const counts = !simulated || devCountSimulated();
   const recorder = new Recorder();
   const trace = new TraceRecorder();
   let ghost = loadGhost(circuit.id);
@@ -187,7 +188,7 @@ export function createRideController(
       load: (id) => loadGhost(`${circuit.id}:${id}`),
       // a simulated ride proves nothing: its efforts are shown but never kept
       save: (id, trace) => {
-        if (!simulated) saveGhost(`${circuit.id}:${id}`, trace);
+        if (counts) saveGhost(`${circuit.id}:${id}`, trace);
       },
     },
     onEffort,
@@ -221,7 +222,7 @@ export function createRideController(
     const best = !ghost || lap.time < ghost.lapTime;
     if (best) {
       ghost = finishedTrace; // chased for the rest of this ride either way
-      if (!simulated) saveGhost(circuit.id, finishedTrace);
+      if (counts) saveGhost(circuit.id, finishedTrace);
     }
     showToast(`Lap ${lap.number}  ${fmtLap(lap.time)}${best ? '  ★ best' : ''}`);
   }
@@ -607,7 +608,7 @@ export function createRideController(
     }
     cleanup();
     onEnd({
-      circuit, simulated, laps: sim.laps.slice(), efforts: segments.efforts.slice(), finished, error,
+      circuit, simulated: !counts, laps: sim.laps.slice(), efforts: segments.efforts.slice(), finished, error,
       pacer: pacer && started ? { power: pacer.power, gap: pacer.gap(sim.distance, riderTrack, sim.time) } : null,
       workout: plan && started
         ? { name: workoutEntry!.name, ridden: Math.min(sim.time, plan.duration), duration: plan.duration }
@@ -685,9 +686,10 @@ export function createRideController(
     simulated,
     hasPacer,
     hasWorkout: plan !== null,
-    banner: resume
+    banner: (resume
       ? (simulated ? 'Raise the power to carry on' : 'Start pedalling to carry on')
-      : (simulated ? 'Raise the power to start' : 'Start pedalling'),
+      : (simulated ? 'Raise the power to start' : 'Start pedalling'))
+      + (simulated && counts ? ' (test ride: counts)' : ''),
     attach,
     setPaused,
     setSimPower,
