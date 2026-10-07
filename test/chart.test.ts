@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { downsample, niceTicks, restorePeak, timeTicks } from '../src/ui/chart.ts';
+import { downsample, niceTicks, restorePeak, timeTicks } from '../src/charts/line-math.ts';
 
 describe('chart helpers', () => {
   test('downsample keeps short series as they are', () => {

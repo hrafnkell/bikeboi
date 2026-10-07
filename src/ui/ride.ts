@@ -11,7 +11,6 @@ import {
 } from '../ride/gears.ts';
 import { TraceRecorder, gapSeconds, ghostLapDistance, loadGhost, saveGhost } from '../ride/ghost.ts';
 import { Pacer, Track } from '../ride/pacer.ts';
-import type { PacerGap } from '../ride/pacer.ts';
 import { Recorder } from '../ride/recorder.ts';
 import { resumeState } from '../ride/resume.ts';
 import { WorkoutPlan, describeTarget, parseWorkout } from '../ride/workout.ts';
@@ -27,18 +26,8 @@ import { kcalFromJoules } from '../ride/energy.ts';
 import { CRR, CW } from '../types.ts';
 import { clamp, fmtClock, fmtKm, fmtLap, h, setText } from './dom.ts';
 
-export interface RideOutcome {
-  circuit: Circuit;
-  laps: LapResult[];
-  efforts: SegmentEffort[];
-  finished: FinishedRide | null;
-  /** Why there is no file, when there is none. */
-  error: string | null;
-  /** How the ride ended against the pacemaker, if there was one. */
-  pacer: { power: number; gap: PacerGap } | null;
-  /** The workout the pacemaker followed, and how much of it was ridden, in seconds. */
-  workout: { name: string; ridden: number; duration: number } | null;
-}
+export type { RideOutcome } from '../ride/outcome.ts';
+import type { RideOutcome } from '../ride/outcome.ts';
 
 const OFFSET_STEP = 0.005; // gradient per gear in the offset rule
 const SIM_PUSH_MS = 500;
