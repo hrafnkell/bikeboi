@@ -16,6 +16,9 @@ interface RideRow {
   meta: { pacer?: number | null; workout?: string | null; laps?: number };
   fitBytes: number;
   createdAt: number;
+  intervalsId: string | null;
+  intervalsAt: number | null;
+  intervalsError: string | null;
 }
 
 const emit = defineEmits<{ back: [] }>();
@@ -25,6 +28,25 @@ const nextBefore = ref<number | null>(null);
 const loading = ref(false);
 const error = ref('');
 const loadedOnce = ref(false);
+const sending = ref<string | null>(null);
+const intervals = ref<{ connected: boolean }>({ connected: false });
+
+async function send(ride: RideRow) {
+  sending.value = ride.id;
+  error.value = '';
+  try {
+    const result = await api<{ ride: RideRow }>('POST', `/api/rides/${encodeURIComponent(ride.id)}/intervals`);
+    Object.assign(ride, result.ride);
+  } catch (e) {
+    error.value = describeError(e);
+  } finally {
+    sending.value = null;
+  }
+}
+
+function activityUrl(id: string): string {
+  return `https://intervals.icu/activities/${encodeURIComponent(id)}`;
+}
 
 async function load(before: number | null) {
   loading.value = true;
@@ -57,6 +79,7 @@ function when(ms: number): string {
 }
 
 onMounted(() => {
+  void api<{ connected: boolean }>('GET', '/api/intervals').then((r) => (intervals.value = r)).catch(() => {});
   window.scrollTo(0, 0);
   void load(null);
 });
@@ -83,6 +106,10 @@ onMounted(() => {
         </div>
         <div class="row ride-actions">
           <a class="btn" :href="`/api/rides/${encodeURIComponent(ride.id)}/fit`" :download="ride.filename">Download FIT</a>
+          <a v-if="ride.intervalsId" class="btn" :href="activityUrl(ride.intervalsId)" target="_blank" rel="noopener">On intervals.icu</a>
+          <button v-else-if="intervals.connected" class="btn" :disabled="sending === ride.id" @click="send(ride)">
+            {{ sending === ride.id ? 'Sending…' : ride.intervalsError ? 'Retry intervals.icu' : 'Send to intervals.icu' }}
+          </button>
           <button class="btn" @click="remove(ride)">Delete</button>
         </div>
       </li>

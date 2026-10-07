@@ -15,6 +15,10 @@ export interface AuthContext {
   cookieSecure: boolean;
   trustProxy: boolean;
   socketAddress: (req: Request) => string | null;
+  /** For sealing third-party API keys at rest; null when SECRET_KEY is not configured. */
+  secretKey: CryptoKey | null;
+  /** Outbound HTTP, replaceable in tests. */
+  fetch: (input: string, init?: RequestInit) => Promise<Response>;
 }
 
 const SESSION_SECONDS = SESSION_DAYS * 24 * 3600;

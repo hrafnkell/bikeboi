@@ -149,8 +149,9 @@ function download() {
     <div class="row">
       <button v-if="finished" class="btn btn-primary" @click="download">Download FIT file</button>
       <span v-if="finished && outcome.simulated" class="upload-status">Simulated ride: not counted, not saved to your account</span>
-      <span v-else-if="finished && account.status === 'in'" class="upload-status">
-        {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded when you\u2019re online' }}
+      <span v-else-if="finished && account.status !== 'in'" class="upload-status">Sign in to keep your rides and send them to intervals.icu</span>
+      <span v-else-if="finished" class="upload-status">
+        {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded when you\u2019re online' }}<template v-if="uploads.last === 'saved' && uploads.pending === 0 && uploads.intervals"> · {{ uploads.intervals === 'sent' ? 'sent to intervals.icu' : 'intervals.icu upload failed; retry from My rides' }}</template>
       </span>
       <button class="btn" @click="emit('done')">Back to start</button>
     </div>

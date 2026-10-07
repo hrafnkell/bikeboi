@@ -49,7 +49,10 @@ SQLite database (`bun:sqlite`, WAL). The app works fully without an account; sig
 syncs those things between devices (`src/sync/`) and keeps a ride history (`#rides`).
 There is no password-reset email: on the server, `DB_PATH=data/bikeboi.db bun server/cli.ts
 reset-password <email>` sets a new one. `deploy/backup.sh` runs nightly from a systemd
-timer and keeps 14 days of gzipped copies in `backups/`.
+timer and keeps 14 days of gzipped copies in `backups/`. Rides can be sent to
+intervals.icu with the rider's own API key (`server/intervals.ts`), which is stored sealed
+with `SECRET_KEY` from `.env` (the deploy script creates one). Dev: `bun run dev:api` sets
+a fixed dev key.
 
 ## Deploy
 

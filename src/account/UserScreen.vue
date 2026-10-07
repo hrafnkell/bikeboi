@@ -4,6 +4,7 @@ import { onMounted } from 'vue';
 import RiderEditor from '../ui/RiderEditor.vue';
 import SetupFields from '../ui/SetupFields.vue';
 import AccountCard from './AccountCard.vue';
+import IntervalsCard from './IntervalsCard.vue';
 
 const emit = defineEmits<{ back: [] }>();
 onMounted(() => window.scrollTo(0, 0));
@@ -16,6 +17,10 @@ onMounted(() => window.scrollTo(0, 0));
     <section>
       <h2>Account</h2>
       <AccountCard @signed-out="emit('back')" />
+    </section>
+    <section>
+      <h2>intervals.icu</h2>
+      <IntervalsCard />
     </section>
     <section>
       <h2>Setup</h2>

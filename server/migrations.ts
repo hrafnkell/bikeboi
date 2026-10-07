@@ -66,4 +66,20 @@ CREATE TABLE rides (
 CREATE INDEX rides_user_started ON rides(user_id, started_at DESC);
 `,
   },
+  {
+    id: 2,
+    sql: `
+CREATE TABLE intervals (
+  user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  api_key      BLOB NOT NULL,
+  athlete_id   TEXT NOT NULL,
+  athlete_name TEXT NOT NULL,
+  auto         INTEGER NOT NULL DEFAULT 1,
+  connected_at INTEGER NOT NULL
+);
+ALTER TABLE rides ADD COLUMN intervals_id TEXT;
+ALTER TABLE rides ADD COLUMN intervals_at INTEGER;
+ALTER TABLE rides ADD COLUMN intervals_error TEXT;
+`,
+  },
 ];

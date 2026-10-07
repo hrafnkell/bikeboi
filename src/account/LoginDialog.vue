@@ -52,7 +52,7 @@ async function decide(mode: 'merge' | 'replace') {
         <button type="button" class="btn btn-link" @click="emit('close')">Not now</button>
       </div>
       <p v-if="error" class="account-error">{{ error }}</p>
-      <p class="note">Optional. An account syncs your settings, bests and workouts between devices and keeps your rides. Nothing else is stored; see <a href="#about" @click="emit('close')">About</a>.</p>
+      <p class="note">Optional. An account syncs your settings, bests and workouts between devices, keeps your rides, and can send them to intervals.icu. Nothing else is stored; see <a href="#about" @click="emit('close')">About</a>.</p>
     </form>
   </dialog>
 </template>

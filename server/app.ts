@@ -12,6 +12,8 @@ export interface AppOptions {
   db: Database;
   cookieSecure: boolean;
   trustProxy: boolean;
+  secretKey?: CryptoKey | null;
+  fetch?: (input: string, init?: RequestInit) => Promise<Response>;
 }
 
 export type RouteTable = Record<string, Partial<Record<'GET' | 'POST' | 'PUT' | 'DELETE', (req: Request) => Promise<Response> | Response>>>;
@@ -25,6 +27,8 @@ export function createApp(opts: AppOptions) {
     cookieSecure: opts.cookieSecure,
     trustProxy: opts.trustProxy,
     socketAddress: (req) => socketLookup(req),
+    secretKey: opts.secretKey ?? null,
+    fetch: opts.fetch ?? ((input, init) => fetch(input, init)),
   };
   const auth = authRoutes(ctx);
   const settings = settingsRoutes(ctx);

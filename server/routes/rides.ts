@@ -4,6 +4,7 @@ import { ApiError, json } from '../http.ts';
 import * as v from '../validate.ts';
 import { requireUser } from './auth.ts';
 import type { AuthContext } from './auth.ts';
+import { autoUploadEnabled, sendRide } from './intervals.ts';
 
 /** Per-user storage limits. Tests lower these. */
 export const quotas = { maxRides: 2000, maxBytes: 150 * 1024 * 1024 };
@@ -18,10 +19,14 @@ interface RideRow {
   meta: string;
   fitBytes: number;
   createdAt: number;
+  intervalsId: string | null;
+  intervalsAt: number | null;
+  intervalsError: string | null;
 }
 
 const COLUMNS = `id, started_at AS startedAt, circuit_id AS circuitId, circuit_name AS circuitName, filename,
-  summary, meta, fit_bytes AS fitBytes, created_at AS createdAt`;
+  summary, meta, fit_bytes AS fitBytes, created_at AS createdAt,
+  intervals_id AS intervalsId, intervals_at AS intervalsAt, intervals_error AS intervalsError`;
 
 type RouteRequest = Request & { params?: Record<string, string> };
 
@@ -80,7 +85,27 @@ export function ridesRoutes(ctx: AuthContext) {
            VALUES ($id, $u, $s, $c, $cn, $f, $summary, $meta, $fit, $bytes, $t)`,
         )
         .run({ id, u: user.id, s: startedAt, c: circuitId, cn: circuitName, f: filename, summary: JSON.stringify(summary), meta: JSON.stringify(meta), fit, bytes: fit.length, t: Date.now() });
+      // straight on to intervals.icu when the rider asked for that; a failure is recorded, not fatal
+      if (autoUploadEnabled(ctx, user.id)) {
+        await sendRide(ctx, user.id, { id, filename, circuitName, summary, meta, fit }).catch(() => {});
+      }
       return json({ ride: toJson(byId.get({ u: user.id, id }) as RideRow) }, 201);
+    },
+
+    /** Send one ride to intervals.icu now. */
+    async toIntervals(req: RouteRequest): Promise<Response> {
+      const user = requireUser(ctx, req);
+      const id = req.params?.id ?? '';
+      const row = ctx.db.query(`SELECT ${COLUMNS}, fit FROM rides WHERE user_id = $u AND id = $id`).get({ u: user.id, id }) as (RideRow & { fit: Uint8Array }) | null;
+      if (!row) throw new ApiError(404, 'not found');
+      const ride = toJson(row);
+      try {
+        const result = await sendRide(ctx, user.id, { id: row.id, filename: row.filename, circuitName: row.circuitName, summary: ride.summary, meta: ride.meta, fit: row.fit });
+        return json({ ride: toJson(byId.get({ u: user.id, id }) as RideRow), ...result });
+      } catch (e) {
+        if (e instanceof ApiError) throw e;
+        throw new ApiError(502, e instanceof Error ? e.message : 'upload failed');
+      }
     },
 
     list(req: Request): Response {

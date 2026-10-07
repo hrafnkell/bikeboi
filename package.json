@@ -12,7 +12,7 @@
     "test": "bun test",
     "typecheck": "vue-tsc --noEmit",
     "preview": "bunx --bun vite preview",
-    "dev:api": "PORT=3071 HOST=127.0.0.1 DB_PATH=data/dev.db COOKIE_SECURE=0 bun --hot server.ts"
+    "dev:api": "PORT=3071 HOST=127.0.0.1 DB_PATH=data/dev.db COOKIE_SECURE=0 SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef bun --hot server.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

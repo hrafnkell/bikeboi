@@ -1,6 +1,7 @@
 // Serves the prebuilt dist/ folder and the JSON API. Vite is the dev server for the UI.
 
 import { createApp, MAX_BODY_BYTES } from './server/app.ts';
+import { loadSecretKey } from './server/crypto.ts';
 import { openDb } from './server/db.ts';
 
 const production = process.env.NODE_ENV === 'production';
@@ -11,8 +12,12 @@ const root = new URL('./', import.meta.url);
 const db = openDb(process.env.DB_PATH ?? (production ? undefined : ':memory:'));
 if (!process.env.DB_PATH) console.warn('bikeboi: DB_PATH is not set; using an in-memory database');
 
+const secretKey = await loadSecretKey();
+if (!secretKey) console.warn('bikeboi: SECRET_KEY is not set; connecting intervals.icu is disabled');
+
 const app = createApp({
   db,
+  secretKey,
   cookieSecure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE !== '0' : production,
   trustProxy: process.env.TRUST_PROXY === '1',
 });

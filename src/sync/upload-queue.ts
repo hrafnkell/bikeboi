@@ -36,6 +36,8 @@ export interface UploadStore {
 export const uploads = reactive({
   pending: 0,
   last: 'idle' as 'idle' | 'uploading' | 'saved' | 'queued' | 'failed',
+  /** What happened on intervals.icu for the last saved ride: '' when not connected. */
+  intervals: '' as '' | 'sent' | 'duplicate' | 'failed',
 });
 
 const MAX_QUEUE = 20;
@@ -170,10 +172,12 @@ export function flushUploads(s: UploadStore = store(), post: PostRide = postRide
     uploads.last = 'uploading';
     for (const entry of entries) {
       try {
-        await post(entry);
+        const result = (await post(entry)) as { ride?: { intervalsId?: string | null; intervalsError?: string | null } } | undefined;
         await s.remove(entry.startedAt);
         uploads.pending -= 1;
         uploads.last = 'saved';
+        const r = result?.ride;
+        uploads.intervals = r?.intervalsId ? 'sent' : r?.intervalsError ? 'failed' : '';
       } catch (e) {
         if (e instanceof ApiError && e.status !== 401 && e.status !== 429 && e.status < 500) {
           console.warn(`bikeboi: ride upload rejected (${e.status} ${e.message}); dropping it`);

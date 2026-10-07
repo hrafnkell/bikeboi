@@ -175,7 +175,7 @@ Main Set 3x
         An account is optional. With one, bikeboi stores your email address, a password hash (never the password), your settings and rider look, your best laps and segment bests, your own workouts, and your rides (the summary and the FIT file) on a server in Iceland run by hlekkir.is. The site sits behind Cloudflare, which sees traffic in transit. Nothing is shared with anyone else, and there are no analytics.
       </p>
       <p>
-        The only cookie is the session cookie that keeps you signed in; it is strictly necessary, so there is no cookie banner. You can download every ride, and delete the whole account from your account page (the user icon at the top) at any time; the server copy goes immediately and backups expire within 14 days. Questions or requests: <a href="mailto:hrafnkell@gmail.com">hrafnkell@gmail.com</a>.
+        If you connect intervals.icu, your API key for it is stored encrypted and used only to send rides there when you ask, or automatically if you switch that on; disconnecting forgets the key. The only cookie is the session cookie that keeps you signed in; it is strictly necessary, so there is no cookie banner. You can download every ride, and delete the whole account from your account page (the user icon at the top) at any time; the server copy goes immediately and backups expire within 14 days. Questions or requests: <a href="mailto:hrafnkell@gmail.com">hrafnkell@gmail.com</a>.
       </p>
     </section>
 

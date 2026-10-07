@@ -20,6 +20,11 @@ rsync -az --delete -e "ssh $SSH_OPTS" dist deploy server src server.ts package.j
 ssh $SSH_OPTS "$HOST" "DIR=$DIR bash -s" <<'REMOTE'
 set -euo pipefail
 mkdir -p ~/.config/systemd/user "$HOME/$DIR/data" "$HOME/$DIR/backups"
+# secrets live in .env (read by the service, never synced); make the sealing key once
+if ! grep -qs '^SECRET_KEY=' "$HOME/$DIR/.env"; then
+  (umask 077; echo "SECRET_KEY=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> "$HOME/$DIR/.env")
+  echo "created SECRET_KEY in $DIR/.env"
+fi
 cp "$HOME/$DIR/deploy/bikeboi.service" ~/.config/systemd/user/bikeboi.service
 cp "$HOME/$DIR/deploy/bikeboi-backup.service" "$HOME/$DIR/deploy/bikeboi-backup.timer" ~/.config/systemd/user/
 systemctl --user daemon-reload
