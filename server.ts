@@ -1,50 +1,18 @@
-// Dev: bundles index.html on the fly. Production: serves the prebuilt dist/ folder.
-// The backend (accounts, uploads) will grow here.
+// Serves the prebuilt dist/ folder (Vite is the dev server). The backend (accounts,
+// uploads) will grow here.
 
 const production = process.env.NODE_ENV === 'production';
 const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOST ?? (production ? '127.0.0.1' : '0.0.0.0');
+if (!production) console.warn('bikeboi: serving dist/; for development run `bun run dev` (Vite)');
 const root = new URL('./', import.meta.url);
 
-/** Files in public/ live outside the bundle, at fixed paths: manifest, icons, share image, robots. */
-const PUBLIC_FILES: Record<string, string> = {
-  '/manifest.webmanifest': 'application/manifest+json',
-  '/robots.txt': 'text/plain; charset=utf-8',
-  '/og.png': 'image/png',
-};
-
-function publicFile(dir: URL, pathname: string): Response | null {
-  const type = PUBLIC_FILES[pathname];
-  if (type) return new Response(Bun.file(new URL(`.${pathname}`, dir)), { headers: { 'content-type': type } });
-  const icon = /^\/icons\/([a-z0-9-]+\.png)$/.exec(pathname);
-  if (icon) return new Response(Bun.file(new URL(`icons/${icon[1]}`, dir)));
-  return null;
-}
-
-async function serveDev() {
-  const index = (await import('./index.html')).default;
-  const publicDir = new URL('public/', root);
-  return Bun.serve({
-    hostname,
-    port,
-    development: true,
-    routes: {
-      '/': index,
-      '/manifest.webmanifest': (req) => publicFile(publicDir, new URL(req.url).pathname)!,
-      '/robots.txt': (req) => publicFile(publicDir, new URL(req.url).pathname)!,
-      '/og.png': (req) => publicFile(publicDir, new URL(req.url).pathname)!,
-      '/icons/:name': (req) =>
-        publicFile(publicDir, new URL(req.url).pathname) ?? new Response('Not found', { status: 404 }),
-    },
-  });
-}
-
 /**
- * The build names scripts, styles and images after their content (index-ab12cd34.js), so a
- * release that changes them changes their URLs. Those can be cached forever; the HTML that
- * points at them must always be revalidated, or a CDN would keep serving an old release.
+ * The build names scripts, styles and images after their content (assets/index-Ab12cd_4.js),
+ * so a release that changes them changes their URLs. Those can be cached forever; the HTML
+ * that points at them must always be revalidated, or a CDN would keep serving an old release.
  */
-const HASHED = /-[a-z0-9]{8}\.[a-z0-9]+$/;
+const HASHED = /-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/;
 const FOREVER = 'public, max-age=31536000, immutable';
 
 async function serveDist() {
@@ -52,7 +20,9 @@ async function serveDist() {
   // Only files found at startup are ever served, so a request path can't reach outside dist/.
   const files = new Map<string, { file: ReturnType<typeof Bun.file>; cache: string }>();
   for await (const name of new Bun.Glob('**/*').scan({ cwd: dist.pathname, onlyFiles: true })) {
-    const cache = name.endsWith('.html') ? 'no-cache' : HASHED.test(name) ? FOREVER : 'public, max-age=3600';
+    const cache = name.endsWith('.html')
+      ? 'no-cache'
+      : name.startsWith('assets/') || HASHED.test(name) ? FOREVER : 'public, max-age=3600';
     files.set(`/${name}`, { file: Bun.file(new URL(name, dist)), cache });
   }
   if (!files.has('/index.html')) throw new Error('dist/index.html is missing: run "bun run build" first');
@@ -79,5 +49,5 @@ async function serveDist() {
   });
 }
 
-const server = production ? await serveDist() : await serveDev();
-console.log(`bikeboi (${production ? 'production' : 'dev'}) on ${server.url}`);
+const server = await serveDist();
+console.log(`bikeboi on ${server.url}`);

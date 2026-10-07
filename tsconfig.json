@@ -3,8 +3,16 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["bun", "web-bluetooth"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "bun",
+      "web-bluetooth",
+      "vite/client"
+    ],
     "strict": true,
     "noEmit": true,
     "allowJs": true,
@@ -14,6 +22,14 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "test", "server.ts"],
-  "exclude": ["src/vendor"]
+  "include": [
+    "src",
+    "src/**/*.vue",
+    "test",
+    "server.ts",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "src/vendor"
+  ]
 }

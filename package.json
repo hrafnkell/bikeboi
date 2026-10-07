@@ -5,16 +5,23 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "dev": "bun --hot server.ts",
+    "dev": "bunx --bun vite",
     "start": "NODE_ENV=production bun server.ts",
     "deploy": "deploy/deploy.sh",
-    "build": "bun build ./index.html --outdir dist --minify && cp -r public/. dist/",
+    "build": "bunx --bun vite build",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "bunx --bun vite preview"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/web-bluetooth": "latest",
-    "typescript": "^5.6.0"
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "^5.6.0",
+    "vite": "^8.3.3",
+    "vue-tsc": "^3.3.12"
+  },
+  "dependencies": {
+    "vue": "^3.5.43"
   }
 }

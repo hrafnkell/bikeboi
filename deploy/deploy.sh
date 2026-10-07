@@ -8,6 +8,7 @@ SSH_OPTS="-o ClearAllForwardings=yes"
 cd "$(dirname "$0")/.."
 
 bun test
+bun run typecheck
 rm -rf dist
 bun run build
 
