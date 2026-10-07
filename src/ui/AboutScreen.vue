@@ -79,7 +79,8 @@ onMounted(() => window.scrollTo(0, 0));
         <li>Your speed comes from your power, the gradient and your weight, the same way it would outside. More watts or less weight means faster.</li>
         <li>The trainer gets harder on climbs and easier on descents. Hill difficulty scales how much of the gradient you feel; it never changes your speed.</li>
         <li>Gears change how hard the pedals feel at a given cadence, not how fast you go for a given power. There are 24, and every ride starts in gear 12.</li>
-        <li>The clock runs only while you are moving. Stop pedalling and roll to a halt, and the ride waits for you.</li>
+          <li>Your rider sits up when spinning easily, gets into the drops near threshold or at speed, stands up for sprints and steep pitches, and tucks on a fast descent.</li>
+          <li>The clock runs only while you are moving. Stop pedalling and roll to a halt, and the ride waits for you.</li>
         <li>Each time you cross the line a lap is timed. Your best lap on each circuit is kept in this browser and rides beside you as a translucent ghost, with the gap shown in seconds.</li>
         <li>Climbs, descents and sprints are timed as segments. As you approach one, a panel shows what is coming; on it, you see how much is left, an estimated finishing time and how you compare with your best. Your best on each segment is kept in this browser.</li>
         <li>The cards show live power, cadence and heart rate with their highest values so far, plus speed, gradient, distance, metres climbed and an estimate of calories burned.</li>

@@ -1,5 +1,8 @@
 // The rider and bike: customisable look, and the drawing shared by the game and the preview.
 
+import { postures } from './stance.ts';
+import type { Posture } from './stance.ts';
+
 export type SpokeStyle = 'classic' | 'five' | 'tri' | 'disc';
 export type SleeveLength = 'short' | 'long';
 export type PantsLength = 'shorts' | 'tights';
@@ -141,6 +144,8 @@ export interface RiderPose {
   wheel: number;
   /** Draw a headlight beam and lights. */
   headlight: boolean;
+  /** Body position; on the hoods when not given. */
+  posture?: Posture;
 }
 
 interface Point {
@@ -179,10 +184,12 @@ export function drawRiderFigure(ctx: CanvasRenderingContext2D, paint: RiderPaint
   const bb: Point = { x: 0.42, y: 0.28 };
   const seat: Point = { x: 0.27, y: 0.93 };
   const head: Point = { x: 0.86, y: 0.9 };
-  const bar: Point = { x: 0.95, y: 0.98 };
-  const hip: Point = { x: 0.29, y: 1.0 };
-  const shoulder: Point = { x: 0.7, y: 1.38 };
-  const noggin: Point = { x: 0.83, y: 1.55 };
+  const posture = pose.posture ?? postures.normal;
+  const bar: Point = posture.hand;
+  const hip: Point = posture.hip;
+  const shoulder: Point = posture.shoulder;
+  const noggin: Point = posture.head;
+  const hood: Point = { x: 0.95, y: 0.98 };
 
   const line = (a: Point, b: Point, w: number, color: string) => {
     ctx.strokeStyle = color;
@@ -259,7 +266,7 @@ export function drawRiderFigure(ctx: CanvasRenderingContext2D, paint: RiderPaint
   line(bb, head, 0.045, paint.frame);
   line({ x: 0.3, y: 0.86 }, head, 0.04, paint.frame);
   line(head, front, 0.035, paint.frame);
-  line(head, bar, 0.03, paint.parts);
+  line(head, hood, 0.03, paint.parts);
   line({ x: 0.2, y: 0.95 }, { x: 0.36, y: 0.95 }, 0.04, paint.parts);
   leg(pose.crank, false);
   line(hip, shoulder, 0.17, paint.jersey);

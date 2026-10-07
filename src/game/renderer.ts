@@ -4,6 +4,8 @@ import type { Circuit } from '../ride/circuit.ts';
 import { defaultRiderLook, drawRiderFigure, drawRobotFigure, monoPaint, paintFor, robotColors } from './rider.ts';
 import type { RiderLook, RiderPaint, RobotColors } from './rider.ts';
 import { findScene } from './scenes.ts';
+import { blendPosture, postures } from './stance.ts';
+import type { Posture, StanceId } from './stance.ts';
 import type { Palette, Scene as SceneStyle, SceneId } from './scenes.ts';
 import { hash, makeCamera, noise, toScreenX, toScreenY, visibleRange } from './world.ts';
 import type { Camera, Viewport } from './world.ts';
@@ -23,6 +25,8 @@ export interface Scene {
   cadence: number; // rpm
   /** Other riders on the road: the best-lap ghost and the pacemaker. */
   others: OtherRider[];
+  /** How the rider sits; eased towards over a few hundred milliseconds. */
+  stance?: StanceId;
   /** Seconds since the previous frame. */
   dt: number;
 }
@@ -58,6 +62,7 @@ export class Renderer {
   private palette: Palette;
   private style: SceneStyle;
   private clock = 0;
+  private posture: Posture = postures.normal;
   private riderPaint: RiderPaint;
   private ghostPaint: RiderPaint;
   private robot: RobotColors;
@@ -119,6 +124,7 @@ export class Renderer {
     this.crankAngle += (scene.cadence / 60) * Math.PI * 2 * scene.dt;
     this.ghostCrank += (85 / 60) * Math.PI * 2 * scene.dt;
     this.clock += scene.dt;
+    this.posture = blendPosture(this.posture, postures[scene.stance ?? 'normal'], 1 - Math.exp(-scene.dt * 5));
 
     this.drawSky(cam);
     this.drawRange(cam, 0.03, 0.34, 0.2, 0.012, this.palette.far, circuit.seed + 1);
@@ -477,6 +483,7 @@ export class Renderer {
       if (other === 'ghost') ctx.globalAlpha = this.style.neon ? 0.65 : 0.4;
       drawRiderFigure(ctx, other ? this.ghostPaint : this.riderPaint, {
         crank, wheel, headlight: this.style.headlight && !other,
+        posture: other ? undefined : this.posture,
       });
     }
     ctx.restore();

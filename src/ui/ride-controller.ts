@@ -27,6 +27,7 @@ import { RideSim, projectTime } from '../ride/sim.ts';
 import type { LapResult } from '../ride/sim.ts';
 import { WorkoutPlan, describeTarget, parseWorkout } from '../ride/workout.ts';
 import { findWorkout } from '../ride/workouts.ts';
+import { StanceSelector } from '../game/stance.ts';
 import { bus, live, settings, totalMass } from '../state.ts';
 import { CRR, CW } from '../types.ts';
 
@@ -135,6 +136,9 @@ export function createRideController(
   // the finish estimate uses a steadier power than the instant reading, and is refreshed once a second
   let steadyPower = 0;
   let estimate = { at: -1, value: 0 };
+  // the stance reacts to a shorter power average than the finish estimate does
+  let recentPower = 0;
+  const stance = new StanceSelector();
   let wakeLock: WakeLockSentinel | null = null;
   // wall clock, except when fast-forwarding, where it runs at the same multiple as the ride
   let virtualNow = Date.now();
@@ -438,6 +442,7 @@ export function createRideController(
       if (sim.moving) recorder.resume(nowMs());
       else recorder.pause(nowMs());
       steadyPower += (live.power - steadyPower) * 0.05;
+      recentPower += (live.power - recentPower) * 0.3;
       peak.power = Math.max(peak.power, live.power);
       peak.cadence = Math.max(peak.cadence, live.cadence);
       peak.heartRate = Math.max(peak.heartRate, live.heartRate);
@@ -479,11 +484,15 @@ export function createRideController(
       });
     }
     if (pacer) others.push({ kind: 'pacer', label: `${pacer.power} W`, distance: pacer.renderDistance(sim.alpha) });
+    const posture = paused
+      ? stance.current
+      : stance.update(dt, { power: started ? recentPower : live.power, ftp: settings.ftp, speed: sim.speed, grade: sim.grade });
     renderer?.draw({
       distance: sim.renderDistance,
       speed: paused ? 0 : sim.speed,
       cadence: paused ? 0 : live.cadence,
       others,
+      stance: posture,
       dt: paused ? 0 : dt,
     });
     raf = requestAnimationFrame(frame);
