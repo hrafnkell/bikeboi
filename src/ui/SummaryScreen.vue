@@ -4,6 +4,8 @@ import { computed } from 'vue';
 import { fmtClock, fmtKm, fmtLap } from '../format.ts';
 import type { RideOutcome } from '../ride/outcome.ts';
 import { downloadFit } from '../ride/recorder.ts';
+import { account } from '../account/session.ts';
+import { uploads } from '../sync/upload-queue.ts';
 import { describeSegment } from '../ride/segments.ts';
 import type { SegmentEffort } from '../ride/segments.ts';
 import LineChart from './LineChart.vue';
@@ -128,6 +130,9 @@ function download() {
     <p v-if="finished" class="note">Import the file into Strava, Garmin Connect or intervals.icu.</p>
     <div class="row">
       <button v-if="finished" class="btn btn-primary" @click="download">Download FIT file</button>
+      <span v-if="finished && account.status === 'in'" class="upload-status">
+        {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded when you\u2019re online' }}
+      </span>
       <button class="btn" @click="emit('done')">Back to start</button>
     </div>
   </main>

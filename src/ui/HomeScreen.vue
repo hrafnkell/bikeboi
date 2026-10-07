@@ -12,6 +12,7 @@ import type { GearMode } from '../state.ts';
 import CircuitCard from './CircuitCard.vue';
 import DeviceList from './DeviceList.vue';
 import PacerEditor from './PacerEditor.vue';
+import AccountPanel from '../account/AccountPanel.vue';
 import RecoveryCard from './RecoveryCard.vue';
 import RiderEditor from './RiderEditor.vue';
 import { settingsR } from './store.ts';
@@ -84,6 +85,7 @@ const welcome = shouldWelcome();
       :resume-label="trainerOn ? 'Resume ride' : 'Resume with simulated power'"
       @resume="(c, r) => emit('resume', c, r)"
     />
+    <AccountPanel />
     <section>
       <h2>Devices</h2>
       <DeviceList />

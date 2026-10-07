@@ -1,5 +1,6 @@
 // The workout library: a few built-in sessions, plus the rider's own, kept in the browser.
 
+import { changes } from '../changes.ts';
 import { parseWorkout } from './workout.ts';
 
 export interface WorkoutEntry {
@@ -8,9 +9,11 @@ export interface WorkoutEntry {
   /** intervals.icu workout-builder text. */
   text: string;
   builtIn: boolean;
+  /** Last change, ms since epoch; 0 for entries from before this was recorded. */
+  updatedAt: number;
 }
 
-const builtIns: WorkoutEntry[] = [
+const builtIns: WorkoutEntry[] = ([
   {
     id: 'builtin:threshold-3x10', name: 'Threshold 3 x 10', builtIn: true,
     text: `Warmup
@@ -89,9 +92,10 @@ Openers 4x
 
 - Cooldown 4m 50%`,
   },
-];
+] as Array<Omit<WorkoutEntry, 'updatedAt'>>).map((w) => ({ ...w, updatedAt: 0 }));
 
 const KEY = 'bikeboi:workouts';
+const DELETED_KEY = 'bikeboi:workouts:deleted';
 
 function readCustom(): WorkoutEntry[] {
   try {
@@ -99,9 +103,12 @@ function readCustom(): WorkoutEntry[] {
     const list: unknown = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(list)) return [];
     return list
-      .filter((w): w is { id: string; name: string; text: string } =>
+      .filter((w): w is { id: string; name: string; text: string; updatedAt?: unknown } =>
         !!w && typeof w.id === 'string' && typeof w.name === 'string' && typeof w.text === 'string')
-      .map((w) => ({ id: w.id, name: w.name.slice(0, 60), text: w.text.slice(0, 8000), builtIn: false }));
+      .map((w) => ({
+        id: w.id, name: w.name.slice(0, 60), text: w.text.slice(0, 8000), builtIn: false,
+        updatedAt: Number.isFinite(Number(w.updatedAt)) ? Number(w.updatedAt) : 0,
+      }));
   } catch {
     return [];
   }
@@ -109,10 +116,42 @@ function readCustom(): WorkoutEntry[] {
 
 function writeCustom(list: WorkoutEntry[]): void {
   try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify(list.map(({ id, name, text }) => ({ id, name, text }))));
+    globalThis.localStorage?.setItem(KEY, JSON.stringify(list.map(({ id, name, text, updatedAt }) => ({ id, name, text, updatedAt }))));
   } catch {
     // storage unavailable: the workout lasts for this visit only
   }
+}
+
+/** Ids deleted here that the account may still hold. */
+export function readTombstones(): string[] {
+  try {
+    const list: unknown = JSON.parse(globalThis.localStorage?.getItem(DELETED_KEY) ?? '[]');
+    return Array.isArray(list) ? list.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeTombstones(ids: string[]): void {
+  try {
+    globalThis.localStorage?.setItem(DELETED_KEY, JSON.stringify(ids.slice(-100)));
+  } catch {
+    // nothing to do
+  }
+}
+
+export function clearTombstones(ids: string[]): void {
+  writeTombstones(readTombstones().filter((id) => !ids.includes(id)));
+}
+
+/** The rider's own workouts, as stored (no built-ins). */
+export function listCustomWorkouts(): WorkoutEntry[] {
+  return readCustom();
+}
+
+/** Replace the rider's own workouts with what the account holds, without announcing it. */
+export function replaceCustomWorkouts(list: Array<Pick<WorkoutEntry, 'id' | 'name' | 'text' | 'updatedAt'>>): void {
+  writeCustom(list.map((w) => ({ ...w, builtIn: false })));
 }
 
 export function listWorkouts(): WorkoutEntry[] {
@@ -130,14 +169,17 @@ export function saveWorkout(name: string, text: string): WorkoutEntry {
   const existing = custom.find((w) => w.name.toLowerCase() === clean.toLowerCase());
   const entry: WorkoutEntry = {
     id: existing?.id ?? `custom:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-    name: clean, text: text.slice(0, 8000), builtIn: false,
+    name: clean, text: text.slice(0, 8000), builtIn: false, updatedAt: Date.now(),
   };
   writeCustom([...custom.filter((w) => w.id !== entry.id), entry]);
+  changes.emit('workouts', undefined);
   return entry;
 }
 
 export function deleteWorkout(id: string): void {
   writeCustom(readCustom().filter((w) => w.id !== id));
+  if (id.startsWith('custom:')) writeTombstones([...readTombstones().filter((x) => x !== id), id]);
+  changes.emit('workouts', undefined);
 }
 
 /** Built-ins are written by hand; this is checked by the tests. */

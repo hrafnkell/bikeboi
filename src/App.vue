@@ -1,8 +1,13 @@
 <script setup lang="ts">
-// Screens and the tiny hash router: '' is the start screen, '#about' the About page.
+// Screens and the tiny hash router: '' is the start screen, '#about' the About page,
+// '#rides' the account's ride history.
 // The ride and the summary are app state, not addresses; while one is up, the address
 // bar does not drive the screen (the ride traps the back gesture itself).
 import { onMounted, onUnmounted, shallowRef } from 'vue';
+import RidesScreen from './account/RidesScreen.vue';
+import { account, refresh } from './account/session.ts';
+import { startSync } from './sync/index.ts';
+import { enqueue, flushUploads } from './sync/upload-queue.ts';
 import type { Circuit } from './ride/circuit.ts';
 import type { RideOutcome } from './ride/outcome.ts';
 import type { SavedRide } from './ride/ride-store.ts';
@@ -14,6 +19,7 @@ import SummaryScreen from './ui/SummaryScreen.vue';
 type Screen =
   | { kind: 'home' }
   | { kind: 'about' }
+  | { kind: 'rides' }
   | { kind: 'ride'; circuit: Circuit; resume: SavedRide | null; id: number }
   | { kind: 'summary'; outcome: RideOutcome };
 
@@ -26,14 +32,16 @@ function busy(): boolean {
 
 function route() {
   if (busy()) return;
-  screen.value = location.hash === '#about' ? { kind: 'about' } : { kind: 'home' };
+  if (location.hash === '#about') screen.value = { kind: 'about' };
+  else if (location.hash === '#rides' && account.status === 'in') screen.value = { kind: 'rides' };
+  else screen.value = { kind: 'home' };
 }
 
 function ride(circuit: Circuit, resume: SavedRide | null = null) {
   screen.value = { kind: 'ride', circuit, resume, id: ++rides };
 }
 
-function leaveAbout() {
+function leaveSub() {
   // drop the hash without leaving a bare "#" in the address
   history.pushState(null, '', location.pathname + location.search);
   route();
@@ -41,6 +49,13 @@ function leaveAbout() {
 
 function rideEnded(outcome: RideOutcome) {
   screen.value = { kind: 'summary', outcome };
+  if (outcome.finished && account.status === 'in') {
+    void enqueue(outcome.finished, {
+      pacer: outcome.pacer?.power ?? null,
+      workout: outcome.workout?.name ?? null,
+      laps: outcome.laps.length,
+    }).then(() => flushUploads());
+  }
 }
 
 function home() {
@@ -52,6 +67,11 @@ onMounted(() => {
   window.addEventListener('hashchange', route);
   window.addEventListener('popstate', route);
   route();
+  void refresh().then(() => {
+    startSync();
+    // a #rides link opened before we knew who was signed in
+    if (location.hash === '#rides') route();
+  });
 });
 onUnmounted(() => {
   window.removeEventListener('hashchange', route);
@@ -61,7 +81,8 @@ onUnmounted(() => {
 
 <template>
   <HomeScreen v-if="screen.kind === 'home'" @start="ride($event)" @resume="(c, r) => ride(c, r)" />
-  <AboutScreen v-else-if="screen.kind === 'about'" @back="leaveAbout" />
+  <AboutScreen v-else-if="screen.kind === 'about'" @back="leaveSub" />
+  <RidesScreen v-else-if="screen.kind === 'rides'" @back="leaveSub" />
   <RideScreen
     v-else-if="screen.kind === 'ride'"
     :key="screen.id"

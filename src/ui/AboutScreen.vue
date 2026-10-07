@@ -167,9 +167,21 @@ Main Set 3x
     </section>
 
     <section>
+      <h2>Your account and data</h2>
+      <p>
+        Without an account everything stays in this browser: settings, best laps, workouts and rides never leave your device.
+      </p>
+      <p>
+        An account is optional. With one, bikeboi stores your email address, a password hash (never the password), your settings and rider look, your best laps and segment bests, your own workouts, and your rides (the summary and the FIT file) on a server in Iceland run by hlekkir.is. The site sits behind Cloudflare, which sees traffic in transit. Nothing is shared with anyone else, and there are no analytics.
+      </p>
+      <p>
+        The only cookie is the session cookie that keeps you signed in; it is strictly necessary, so there is no cookie banner. You can download every ride, and delete the whole account from the start screen at any time; the server copy goes immediately and backups expire within 14 days. Questions or requests: <a href="mailto:hrafnkell@gmail.com">hrafnkell@gmail.com</a>.
+      </p>
+    </section>
+
+    <section>
       <h2>Good to know</h2>
       <ul>
-        <li>Everything stays on your device. Settings, best laps and rides are stored in this browser; nothing is uploaded and there are no accounts.</li>
         <li>Calories are estimated from the work you did at the pedals, assuming typical cycling efficiency. Heart rate is not used.</li>
         <li>bikeboi is new. It has been tested far more with simulated power than on real trainers, so gear feel in particular may need tuning. The "Simple" gear feel is there as a fallback.</li>
         <li>

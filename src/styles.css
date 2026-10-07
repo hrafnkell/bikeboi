@@ -172,6 +172,24 @@ a { color: var(--accent); }
 .workout-errors { margin: 0; padding-left: 1.2em; color: var(--bad); font-size: 0.9rem; }
 .workout-writer details ul { margin: 6px 0; padding-left: 1.2em; }
 .workout-writer details p { margin: 6px 0; }
+.account { display: flex; flex-direction: column; gap: 8px; }
+.account-form, .account-in, .account-delete { display: flex; flex-direction: column; gap: 10px; }
+.account-form input, .account-delete input {
+  font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; min-height: 44px; flex: 1 1 200px; min-width: 0;
+}
+.account-who { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.account-status { color: var(--muted); font-size: 0.9rem; }
+.account-error { margin: 0; color: var(--bad); font-size: 0.9rem; }
+.btn-link { background: none; border-color: transparent; color: var(--muted); }
+.account .btn, .rides .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.upload-status { align-self: center; color: var(--muted); font-size: 0.9rem; }
+.ride-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ride-row { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ride-main { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ride-when { color: var(--muted); font-size: 0.9rem; }
+.ride-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.ride-actions { margin-top: 2px; }
 .recovery { background: #3b2f12; border: 1px solid #8a6d1c; border-radius: 12px; padding: 12px; }
 .recovery p { margin: 0 0 10px; }
 .footer { color: var(--muted); font-size: 0.8rem; }

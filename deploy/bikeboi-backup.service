@@ -1,0 +1,7 @@
+# systemd user service, installed by deploy/deploy.sh; started by bikeboi-backup.timer
+[Unit]
+Description=bikeboi database backup
+
+[Service]
+Type=oneshot
+ExecStart=%h/srv/bikeboi/deploy/backup.sh

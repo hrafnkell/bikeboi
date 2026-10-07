@@ -8,6 +8,9 @@ WorkingDirectory=%h/srv/bikeboi
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=3070
+Environment=DB_PATH=%h/srv/bikeboi/data/bikeboi.db
+Environment=TRUST_PROXY=1
+Environment=COOKIE_SECURE=1
 # Optional: override settings without editing this file
 EnvironmentFile=-%h/srv/bikeboi/.env
 ExecStart=%h/.bun/bin/bun run server.ts

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Pacemaker settings: off, steady watts, or a structured workout (built-in or your own).
-import { computed, nextTick, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef } from 'vue';
+import { changes } from '../changes.ts';
 import { clamp, fmtClock } from '../format.ts';
 import { parseWorkout } from '../ride/workout.ts';
 import type { ParsedWorkout } from '../ride/workout.ts';
@@ -47,6 +48,10 @@ function setHard(e: Event) {
 
 // --- workout choice ---
 const workouts = ref(listWorkouts());
+const offChanges = changes.on('workouts', () => {
+  workouts.value = listWorkouts();
+});
+onBeforeUnmount(offChanges);
 function ensureChoice() {
   if (!workouts.value.some((w) => w.id === p.workoutId)) p.workoutId = workouts.value[0].id;
 }

@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.log
 TODO.md
+data/
+backups/

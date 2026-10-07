@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly bikeboi database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

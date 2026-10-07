@@ -74,7 +74,18 @@ export function gapSeconds(trace: GhostTrace, lapTime: number, lapDistance: numb
   return lapTime - timeAt(trace, lapDistance);
 }
 
-const key = (circuitId: string) => `bikeboi:ghost:${circuitId}`;
+import { changes } from '../changes.ts';
+
+const PREFIX = 'bikeboi:ghost:';
+const key = (circuitId: string) => `${PREFIX}${circuitId}`;
+
+function compact(trace: GhostTrace): GhostTrace {
+  return {
+    lapTime: Math.round(trace.lapTime * 100) / 100,
+    t: trace.t.map((v) => Math.round(v * 100) / 100),
+    d: trace.d.map((v) => Math.round(v * 10) / 10),
+  };
+}
 
 export function isGhostTrace(x: unknown): x is GhostTrace {
   const g = x as GhostTrace;
@@ -102,15 +113,50 @@ export function loadGhost(circuitId: string): GhostTrace | null {
   }
 }
 
+/** Save a new best and announce it. `circuitId` may be '<circuitId>:<segmentId>' for a segment. */
 export function saveGhost(circuitId: string, trace: GhostTrace): void {
   try {
-    const compact: GhostTrace = {
-      lapTime: Math.round(trace.lapTime * 100) / 100,
-      t: trace.t.map((v) => Math.round(v * 100) / 100),
-      d: trace.d.map((v) => Math.round(v * 10) / 10),
-    };
-    globalThis.localStorage?.setItem(key(circuitId), JSON.stringify(compact));
+    globalThis.localStorage?.setItem(key(circuitId), JSON.stringify(compact(trace)));
   } catch {
     // storage unavailable: the ghost lives for this session only
   }
+  changes.emit('best', { key: circuitId });
+}
+
+/** Adopt a best from the account if it beats the local one. Returns true when written. */
+export function mergeGhost(circuitId: string, trace: GhostTrace): boolean {
+  if (!isGhostTrace(trace)) return false;
+  const local = loadGhost(circuitId);
+  if (local && local.lapTime <= trace.lapTime) return false;
+  try {
+    globalThis.localStorage?.setItem(key(circuitId), JSON.stringify(compact(trace)));
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+export interface StoredBest {
+  circuitId: string;
+  /** '' for the lap ghost. */
+  segmentId: string;
+  trace: GhostTrace;
+}
+
+/** Every best kept in this browser. */
+export function listGhosts(): StoredBest[] {
+  const out: StoredBest[] = [];
+  const storage = globalThis.localStorage;
+  if (!storage) return out;
+  for (let i = 0; i < storage.length; i++) {
+    const k = storage.key(i);
+    if (!k || !k.startsWith(PREFIX)) continue;
+    const rest = k.slice(PREFIX.length);
+    const colon = rest.indexOf(':');
+    const circuitId = colon < 0 ? rest : rest.slice(0, colon);
+    const segmentId = colon < 0 ? '' : rest.slice(colon + 1);
+    const trace = loadGhost(rest);
+    if (trace) out.push({ circuitId, segmentId, trace });
+  }
+  return out;
 }

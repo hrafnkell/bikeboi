@@ -25,6 +25,7 @@ trainer it runs with simulated power.
 ```sh
 bun install
 bun run dev        # Vite dev server, http://localhost:3000
+bun run dev:api    # the API (accounts, sync, rides) on :3071, proxied by Vite; database in data/dev.db
 bun test
 bun run typecheck  # vue-tsc
 bun run build      # static site in dist/
@@ -39,6 +40,16 @@ expose it over HTTPS, for example `cloudflared tunnel --url http://localhost:300
 
 On Linux desktop Chrome, Web Bluetooth may need
 `chrome://flags/#enable-experimental-web-platform-features`.
+
+## Backend
+
+`server.ts` serves the built site and a JSON API (`server/`): email + password accounts,
+and per-user settings, best laps and segment bests, workouts and ride files, all in one
+SQLite database (`bun:sqlite`, WAL). The app works fully without an account; signing in
+syncs those things between devices (`src/sync/`) and keeps a ride history (`#rides`).
+There is no password-reset email: on the server, `DB_PATH=data/bikeboi.db bun server/cli.ts
+reset-password <email>` sets a new one. `deploy/backup.sh` runs nightly from a systemd
+timer and keeps 14 days of gzipped copies in `backups/`.
 
 ## Deploy
 
