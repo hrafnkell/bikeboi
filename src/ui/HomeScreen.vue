@@ -70,51 +70,68 @@ const welcome = shouldWelcome();
       :resume-label="trainerOn ? 'Resume ride' : 'Resume with simulated power'"
       @resume="(c, r) => emit('resume', c, r)"
     />
-    <section>
-      <h2>Devices</h2>
-      <DeviceList />
-    </section>
-    <section>
-      <h2>Circuit</h2>
-      <div class="circuit-list">
-        <CircuitCard
-          v-for="c in circuits"
-          :key="c.id"
-          :circuit="c"
-          :selected="c.id === selected.id"
-          @select="select(c)"
-        />
-      </div>
-    </section>
-    <section>
-      <h2>Scene</h2>
-      <div class="chips">
-        <button
-          v-for="o in sceneOptions"
-          :key="o.id"
-          class="chip"
-          :aria-pressed="o.id === settingsR.scene ? 'true' : 'false'"
-          @click="selectScene(o.id)"
-        >{{ o.name }}</button>
-      </div>
-    </section>
-    <section>
-      <h2>Pacemaker</h2>
-      <PacerEditor />
-    </section>
+    <div class="group">
+      <section>
+        <h2>Devices</h2>
+        <DeviceList />
+      </section>
+    </div>
+    <div class="group">
+      <section>
+        <h2>Circuit</h2>
+        <div class="circuit-list">
+          <CircuitCard
+            v-for="c in circuits"
+            :key="c.id"
+            :circuit="c"
+            :selected="c.id === selected.id"
+            @select="select(c)"
+          />
+        </div>
+      </section>
+      <section>
+        <h2>Scene</h2>
+        <div class="chips">
+          <button
+            v-for="o in sceneOptions"
+            :key="o.id"
+            class="chip"
+            :aria-pressed="o.id === settingsR.scene ? 'true' : 'false'"
+            @click="selectScene(o.id)"
+          >{{ o.name }}</button>
+        </div>
+      </section>
+    </div>
+    <div class="group">
+      <section>
+        <h2>Pacemaker</h2>
+        <PacerEditor />
+      </section>
+    </div>
     <!-- signed-in riders find these under the user icon instead -->
-    <section v-if="account.status !== 'in'">
-      <h2>Your rider</h2>
-      <RiderEditor />
-    </section>
-    <section v-if="account.status !== 'in'">
-      <h2>Setup</h2>
-      <SetupFields />
-    </section>
+    <div v-if="account.status !== 'in'" class="group">
+      <section>
+        <h2>Your rider</h2>
+        <RiderEditor />
+      </section>
+      <section>
+        <h2>Setup</h2>
+        <SetupFields />
+      </section>
+    </div>
+    <p v-else class="note">Your weight, FTP and your rider’s look are on your account page: the user icon at the top.</p>
     <p class="note">Shift with the Click, the on-screen buttons or the up / down arrow keys.</p>
-    <button class="btn btn-primary btn-start" @click="emit('start', selected)">
-      {{ trainerOn ? 'Ride' : 'Ride with simulated power' }}
-    </button>
+    <div class="start-row">
+      <button class="btn btn-primary btn-start" @click="emit('start', selected)">
+        {{ trainerOn ? 'Ride' : 'Ride with simulated power' }}
+      </button>
+      <button class="btn btn-start btn-surprise" title="Ride a random circuit" @click="emit('start', circuits[Math.floor(Math.random() * circuits.length)])">
+        Surprise me
+      </button>
+    </div>
+    <p v-if="!trainerOn" class="note">
+      Simulated power lets you try the game without a trainer. Simulated rides don’t count: no best laps or segment bests are kept, and they are not saved to your account.
+    </p>
     <footer class="footer">
       bikeboi is free software under the AGPL-3.0, built on code from
       <a href="https://github.com/dvmarinoff/Auuki" target="_blank" rel="noopener">Auuki</a>.

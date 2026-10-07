@@ -13,7 +13,7 @@ function finished(startedAt: number): FinishedRide {
   };
 }
 
-const extras = { pacer: null, workout: null, laps: 0 };
+const extras = { pacer: null, workout: null, laps: 0, trainer: '', peaks: {} };
 
 describe('upload queue', () => {
   test('a successful upload removes the entry', async () => {

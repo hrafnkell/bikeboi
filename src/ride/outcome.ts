@@ -8,6 +8,8 @@ import type { Circuit } from './circuit.ts';
 
 export interface RideOutcome {
   circuit: Circuit;
+  /** Ridden with simulated power: not counted anywhere and not uploaded. */
+  simulated: boolean;
   laps: LapResult[];
   efforts: SegmentEffort[];
   finished: FinishedRide | null;

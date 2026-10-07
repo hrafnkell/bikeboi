@@ -6,6 +6,7 @@ import type { RideOutcome } from '../ride/outcome.ts';
 import { downloadFit } from '../ride/recorder.ts';
 import { account } from '../account/session.ts';
 import { uploads } from '../sync/upload-queue.ts';
+import { PEAK_WINDOWS, peakLabel, peakPowers } from '../ride/peaks.ts';
 import { describeSegment } from '../ride/segments.ts';
 import type { SegmentEffort } from '../ride/segments.ts';
 import LineChart from './LineChart.vue';
@@ -51,6 +52,14 @@ const stats = computed(() => {
     ['Climbed', `${Math.round(s.ascentM)} m`],
     ['Burned (estimate)', `${s.calories} kcal`],
   ] as Array<[string, string]>;
+});
+
+/** Best average power over each window the ride was long enough for. */
+const peaks = computed(() => {
+  const f = finished.value;
+  if (!f) return [] as Array<[string, string]>;
+  const p = peakPowers(f.ride.samples.map((s) => s.power));
+  return PEAK_WINDOWS.filter((w) => p[w] !== undefined).map((w) => [peakLabel(w), `${p[w]} W`] as [string, string]);
 });
 
 // Two measures on different scales get a chart each, never a shared axis.
@@ -101,6 +110,15 @@ function download() {
         <span class="stat-label">{{ label }}</span>
       </div>
     </div>
+    <section v-if="peaks.length > 0">
+      <h2>Best power</h2>
+      <div class="stats peaks">
+        <div v-for="[label, value] in peaks" :key="label" class="stat">
+          <span class="stat-value">{{ value }}</span>
+          <span class="stat-label">{{ label }}</span>
+        </div>
+      </div>
+    </section>
     <p v-if="workoutLine" class="pacer-result">{{ workoutLine }}</p>
     <p v-if="pacerLine" class="pacer-result">{{ pacerLine }}</p>
     <section v-if="hasCharts && powerChart" class="charts">
@@ -130,7 +148,8 @@ function download() {
     <p v-if="finished" class="note">Import the file into Strava, Garmin Connect or intervals.icu.</p>
     <div class="row">
       <button v-if="finished" class="btn btn-primary" @click="download">Download FIT file</button>
-      <span v-if="finished && account.status === 'in'" class="upload-status">
+      <span v-if="finished && outcome.simulated" class="upload-status">Simulated ride: not counted, not saved to your account</span>
+      <span v-else-if="finished && account.status === 'in'" class="upload-status">
         {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded when you\u2019re online' }}
       </span>
       <button class="btn" @click="emit('done')">Back to start</button>

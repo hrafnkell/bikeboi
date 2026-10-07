@@ -5,6 +5,8 @@ import { findScene } from '../game/scenes.ts';
 import { fmtKm, fmtLap } from '../format.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { loadGhost } from '../ride/ghost.ts';
+import { projectTime } from '../ride/sim.ts';
+import { settingsR } from './store.ts';
 
 const props = defineProps<{ circuit: Circuit; selected: boolean }>();
 defineEmits<{ select: [] }>();
@@ -25,6 +27,15 @@ const points = computed(() => {
 });
 
 const ghost = loadGhost(props.circuit.id);
+
+/** A lap at a steady 75% of FTP from a standing start, with the rider's current weights. */
+const estimate = computed(() => {
+  const c = props.circuit;
+  const seconds = projectTime(c, settingsR.riderMass + settingsR.bikeMass, settingsR.ftp * 0.75, 0, 0, c.length);
+  if (!Number.isFinite(seconds)) return '';
+  const minutes = Math.round(seconds / 60);
+  return `\u2248 ${minutes} min at 75% of FTP`;
+});
 const stats = computed(() => {
   const c = props.circuit;
   return `${fmtKm(c.length, 1)} km · ${Math.round(c.ascent)} m up · max ${(c.maxGrade * 100).toFixed(0)}%`;
@@ -43,7 +54,7 @@ const segments = computed(() => {
     <strong>{{ circuit.name }}</strong>
     <span class="circuit-desc">{{ circuit.description }}</span>
     <span class="circuit-stats">{{ stats }}</span>
-    <span class="circuit-stats">{{ segments }}</span>
+    <span class="circuit-stats">{{ segments }}<template v-if="estimate"> · {{ estimate }}</template></span>
     <span class="circuit-best">{{ ghost ? `Best lap ${fmtLap(ghost.lapTime)}` : 'No lap yet' }}</span>
     <span class="circuit-scene">{{ findScene(circuit.scene).name }}</span>
   </button>

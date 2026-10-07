@@ -4,13 +4,24 @@ import { reactive } from 'vue';
 import { ApiError, apiForm, isNetworkError } from '../api/client.ts';
 import type { FinishedRide, RideSummary } from '../ride/recorder.ts';
 
+/** What goes into a ride's meta on the account, beyond the summary. */
+export interface RideExtras {
+  pacer: number | null;
+  workout: string | null;
+  laps: number;
+  /** The trainer's name, '' when unknown. */
+  trainer: string;
+  /** Best average power over 5 s, 20 s, 1, 5 and 20 minutes, where the ride was long enough. */
+  peaks: Record<string, number>;
+}
+
 export interface QueuedRide {
   startedAt: number;
   circuitId: string;
   circuitName: string;
   filename: string;
   summary: RideSummary;
-  meta: { pacer: number | null; workout: string | null; laps: number };
+  meta: RideExtras;
   fit: Uint8Array;
   attempts: number;
 }
@@ -115,7 +126,7 @@ export async function postRide(entry: QueuedRide): Promise<unknown> {
 /** Queue a finished ride for the account. Oldest entries go when the queue is full. */
 export async function enqueue(
   finished: FinishedRide,
-  extras: { pacer: number | null; workout: string | null; laps: number },
+  extras: RideExtras,
   s: UploadStore = store(),
 ): Promise<void> {
   const entry: QueuedRide = {

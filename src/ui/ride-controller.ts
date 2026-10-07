@@ -158,6 +158,11 @@ export function createRideController(
   let intensity = 1;
   let trainerMode: 'sim' | 'erg' = 'sim';
   let lastErg = -1;
+  // pacemaker gap trend, for the time-to-catch estimate and the occasional nudge
+  let gapRate = 0; // metres per second the pacer is getting away (negative: you are closing)
+  let gapPrev: { metres: number; at: number } | null = null;
+  let nudgedAt = 0; // metres behind at which the last nudge was given
+  let wasBehind = false;
 
   const vm = shallowReactive<RideVM>({
     power: '0', cadence: '0', heart: '--', powerMax: 'max --', cadenceMax: 'max --', heartMax: 'max --',
@@ -180,7 +185,10 @@ export function createRideController(
     circuit.length,
     {
       load: (id) => loadGhost(`${circuit.id}:${id}`),
-      save: (id, trace) => saveGhost(`${circuit.id}:${id}`, trace),
+      // a simulated ride proves nothing: its efforts are shown but never kept
+      save: (id, trace) => {
+        if (!simulated) saveGhost(`${circuit.id}:${id}`, trace);
+      },
     },
     onEffort,
   );
@@ -212,8 +220,8 @@ export function createRideController(
     trace.reset();
     const best = !ghost || lap.time < ghost.lapTime;
     if (best) {
-      ghost = finishedTrace;
-      saveGhost(circuit.id, finishedTrace);
+      ghost = finishedTrace; // chased for the rest of this ride either way
+      if (!simulated) saveGhost(circuit.id, finishedTrace);
     }
     showToast(`Lap ${lap.number}  ${fmtLap(lap.time)}${best ? '  ★ best' : ''}`);
   }
@@ -404,7 +412,28 @@ export function createRideController(
       const metres = Math.abs(gap.metres);
       vm.pacerLabel = `Pacer ${pacer.power} W`;
       renderWorkout();
-      vm.pacerMetres = `${metres >= 1000 ? `${(metres / 1000).toFixed(2)} km` : `${Math.round(metres)} m`} ${gap.metres > 0 ? 'ahead of you' : 'behind you'}`;
+      if (gapPrev && sim.time > gapPrev.at) {
+        const rate = (gap.metres - gapPrev.metres) / (sim.time - gapPrev.at);
+        gapRate += (rate - gapRate) * 0.15;
+      }
+      gapPrev = { metres: gap.metres, at: sim.time };
+      const behind = gap.metres > 0;
+      let catching = '';
+      if (behind && gapRate < -0.2) catching = ` \u00B7 catch in ${fmtClock(Math.ceil(gap.metres / -gapRate))}`;
+      else if (!behind && gapRate > 0.2) catching = ` \u00B7 caught in ${fmtClock(Math.ceil(metres / gapRate))}`;
+      vm.pacerMetres = `${metres >= 1000 ? `${(metres / 1000).toFixed(2)} km` : `${Math.round(metres)} m`} ${behind ? 'ahead of you' : 'behind you'}${catching}`;
+      if (started) {
+        if (behind && gap.metres >= nudgedAt + 100 && gapRate > 0) {
+          nudgedAt = Math.floor(gap.metres / 100) * 100;
+          showToast(`Pacer is ${nudgedAt} m up the road \u2014 time to dig in`);
+        }
+        if (!behind) nudgedAt = 0;
+      }
+      // the side only counts once you are clearly past, so a photo finish does not flicker
+      if (Math.abs(gap.metres) > 2) {
+        if (started && wasBehind && !behind) showToast('Caught the pacer!');
+        wasBehind = behind;
+      }
       vm.pacerGap = `${gap.metres > 0 ? '+' : '−'}${Math.abs(gap.seconds).toFixed(1)}`;
       vm.pacerGapSide = gap.metres > 0 ? 'behind' : 'ahead';
     }
@@ -578,7 +607,7 @@ export function createRideController(
     }
     cleanup();
     onEnd({
-      circuit, laps: sim.laps.slice(), efforts: segments.efforts.slice(), finished, error,
+      circuit, simulated, laps: sim.laps.slice(), efforts: segments.efforts.slice(), finished, error,
       pacer: pacer && started ? { power: pacer.power, gap: pacer.gap(sim.distance, riderTrack, sim.time) } : null,
       workout: plan && started
         ? { name: workoutEntry!.name, ridden: Math.min(sim.time, plan.duration), duration: plan.duration }

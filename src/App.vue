@@ -12,6 +12,8 @@ import { enqueue, flushUploads } from './sync/upload-queue.ts';
 import type { Circuit } from './ride/circuit.ts';
 import type { RideOutcome } from './ride/outcome.ts';
 import type { SavedRide } from './ride/ride-store.ts';
+import { devices } from './ble/devices.ts';
+import { peakPowers } from './ride/peaks.ts';
 import AboutScreen from './ui/AboutScreen.vue';
 import HomeScreen from './ui/HomeScreen.vue';
 import RideScreen from './ui/RideScreen.vue';
@@ -52,11 +54,14 @@ function leaveSub() {
 
 function rideEnded(outcome: RideOutcome) {
   screen.value = { kind: 'summary', outcome };
-  if (outcome.finished && account.status === 'in') {
+  // simulated rides are for trying the game: they are never saved to the account
+  if (outcome.finished && !outcome.simulated && account.status === 'in') {
     void enqueue(outcome.finished, {
       pacer: outcome.pacer?.power ?? null,
       workout: outcome.workout?.name ?? null,
       laps: outcome.laps.length,
+      trainer: devices.info('trainer').name,
+      peaks: peakPowers(outcome.finished.ride.samples.map((s) => s.power)),
     }).then(() => flushUploads());
   }
 }

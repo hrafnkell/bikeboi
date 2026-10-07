@@ -285,6 +285,11 @@ export function drawRiderFigure(ctx: CanvasRenderingContext2D, paint: RiderPaint
   dot(noggin, 0.1, paint.skin);
   ctx.beginPath();
   if (paint.hasHelmet) {
+    // hair shows below the back of the helmet
+    ctx.fillStyle = paint.hair;
+    ctx.arc(noggin.x - 0.015, noggin.y - 0.005, 0.105, Math.PI * 0.75, Math.PI * 1.4);
+    ctx.fill();
+    ctx.beginPath();
     ctx.fillStyle = paint.helmet;
     ctx.arc(noggin.x, noggin.y + 0.02, 0.115, Math.PI * 0.05, Math.PI * 1.05);
   } else {
