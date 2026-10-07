@@ -139,6 +139,9 @@ export function createRideController(
   let estimate = { at: -1, value: 0 };
   // the stance reacts to a shorter power average than the finish estimate does
   let recentPower = 0;
+  // the power card shows a one-second average; raw trainer readings jump around too much to read
+  const powerWindow: Array<{ at: number; watts: number }> = [];
+  let shownPower = 0;
   const stance = new StanceSelector();
   let wakeLock: WakeLockSentinel | null = null;
   // wall clock, except when fast-forwarding, where it runs at the same multiple as the ride
@@ -233,7 +236,7 @@ export function createRideController(
       if (hard) {
         const watts = Math.round(settings.pacer.power * intensity);
         vm.target = `target ${watts}`;
-        vm.targetOn = Math.abs(live.power - watts) <= watts * 0.05;
+        vm.targetOn = Math.abs(shownPower - watts) <= watts * 0.05;
       }
       return;
     }
@@ -262,7 +265,7 @@ export function createRideController(
     vm.target = `target ${target.replace(' W', '')}`;
     // within the band, or within 5% of a single target, counts as on target
     const slack = low === high ? low * 0.05 : 0;
-    vm.targetOn = now.step.free || (live.power >= low - slack && live.power <= high + slack);
+    vm.targetOn = now.step.free || (shownPower >= low - slack && shownPower <= high + slack);
     if (now.index !== stepIndex) {
       if (stepIndex >= 0 || started) {
         showToast(`${now.step.label}  ${target}  ${fmtClock(now.step.end - now.step.start)}`);
@@ -381,8 +384,16 @@ export function createRideController(
     vm.gearFlag = saturated > 0 ? 'max' : saturated < 0 ? 'min' : '';
   }
 
+  /** Mean of the power readings taken over the last second. */
+  function smoothPower(now: number): number {
+    powerWindow.push({ at: now, watts: live.power });
+    while (powerWindow.length > 1 && now - powerWindow[0].at > 1000) powerWindow.shift();
+    return powerWindow.reduce((sum, p) => sum + p.watts, 0) / powerWindow.length;
+  }
+
   function updateHud() {
-    vm.power = String(Math.round(live.power));
+    shownPower = smoothPower(performance.now());
+    vm.power = String(Math.round(shownPower));
     vm.cadence = String(Math.round(live.cadence));
     vm.heart = live.heartRate > 0 ? String(Math.round(live.heartRate)) : '--';
     vm.powerMax = `max ${peak.power > 0 ? Math.round(peak.power) : '--'}`;

@@ -209,6 +209,10 @@ a { color: var(--accent); }
 .ride-when { color: var(--muted); font-size: 0.9rem; }
 .ride-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 .ride-actions { margin-top: 2px; }
+.ride-details { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.ride-route { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.ride-route .profile { width: 100%; height: 48px; }
+.ride-route .profile polygon { fill: #4c956c; }
 .recovery { background: #3b2f12; border: 1px solid #8a6d1c; border-radius: 12px; padding: 12px; }
 .recovery p { margin: 0 0 10px; }
 .footer { color: var(--muted); font-size: 0.8rem; }

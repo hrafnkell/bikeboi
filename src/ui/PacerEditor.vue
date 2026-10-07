@@ -104,7 +104,7 @@ function remove() {
 
 const hint = computed(() => {
   let s = p.mode === 'off'
-    ? 'A pacemaker is a rider at your weight on the same road, for you to keep up with.'
+    ? 'A pacemaker is a robotic ride buddy at your weight on the same road, for you to keep up with. It can also do workouts with you and help you with ERG workouts'
     : p.mode === 'steady'
       ? 'It holds this power for the whole ride. It rides only while your clock runs, so it waits when you stop.'
       : 'It follows the workout step by step, and the ride screen shows each target and how long is left.';

@@ -57,7 +57,7 @@ onMounted(() => window.scrollTo(0, 0));
       <h2>Getting started</h2>
       <ol>
         <li>Wake your trainer and tap Connect next to Trainer. The browser shows a list; pick your trainer. Do the same for a heart-rate strap or Click if you have them. Each device needs its own tap, and you pair again on each visit.</li>
-        <li>Pick a circuit, from a flat 2 km loop to a 20 km ride over two climbs, and a scene if you want something other than the circuit’s own.</li>
+        <li>Pick a circuit, from a flat 2 km loop to a 20 km ride over two climbs, and a scene if you want something other than the circuit’s own. Circuits loop, so you can pick a short one and do however many laps you like.</li>
         <li>Enter your weight, your bike’s weight and your FTP under Setup (on your account page once you sign in). Weight decides how fast you climb.</li>
         <li>Dress your rider if you like, then press Ride and start pedalling.</li>
       </ol>
@@ -79,7 +79,6 @@ onMounted(() => window.scrollTo(0, 0));
         <li>Your speed comes from your power, the gradient and your weight, the same way it would outside. More watts or less weight means faster.</li>
         <li>The trainer gets harder on climbs and easier on descents. Hill difficulty scales how much of the gradient you feel; it never changes your speed.</li>
         <li>Gears change how hard the pedals feel at a given cadence, not how fast you go for a given power. There are 24, and every ride starts in gear 12.</li>
-          <li>Your rider sits up when spinning easily, gets into the drops near threshold or at speed, stands up for sprints and steep pitches, and tucks on a fast descent.</li>
           <li>The clock runs only while you are moving. Stop pedalling and roll to a halt, and the ride waits for you.</li>
         <li>Each time you cross the line a lap is timed. Your best lap on each circuit is kept in this browser and rides beside you as a translucent ghost, with the gap shown in seconds.</li>
         <li>Climbs, descents and sprints are timed as segments. As you approach one, a panel shows what is coming; on it, you see how much is left, an estimated finishing time and how you compare with your best. Your best on each segment is kept in this browser.</li>

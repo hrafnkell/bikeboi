@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue';
 import { api } from '../api/client.ts';
 import { fmtClock, fmtKm } from '../format.ts';
 import type { RideSummary } from '../ride/recorder.ts';
+import RideDetails from './RideDetails.vue';
 import { describeError } from './session.ts';
 
 interface RideRow {
@@ -29,6 +30,7 @@ const loading = ref(false);
 const error = ref('');
 const loadedOnce = ref(false);
 const sending = ref<string | null>(null);
+const open = ref<string | null>(null);
 const intervals = ref<{ connected: boolean }>({ connected: false });
 
 async function send(ride: RideRow) {
@@ -105,6 +107,7 @@ onMounted(() => {
           <span v-if="ride.meta?.workout">{{ ride.meta.workout }}</span>
         </div>
         <div class="row ride-actions">
+          <button class="btn" :aria-expanded="open === ride.id ? 'true' : 'false'" @click="open = open === ride.id ? null : ride.id">{{ open === ride.id ? 'Hide details' : 'Details' }}</button>
           <a class="btn" :href="`/api/rides/${encodeURIComponent(ride.id)}/fit`" :download="ride.filename">Download FIT</a>
           <a v-if="ride.intervalsId" class="btn" :href="activityUrl(ride.intervalsId)" target="_blank" rel="noopener">On intervals.icu</a>
           <button v-else-if="intervals.connected" class="btn" :disabled="sending === ride.id" @click="send(ride)">
@@ -112,6 +115,7 @@ onMounted(() => {
           </button>
           <button class="btn" @click="remove(ride)">Delete</button>
         </div>
+        <RideDetails v-if="open === ride.id" :ride-id="ride.id" :circuit-id="ride.circuitId" />
       </li>
     </ol>
     <div class="row">
