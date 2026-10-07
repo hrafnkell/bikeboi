@@ -58,7 +58,7 @@ onMounted(() => window.scrollTo(0, 0));
       <ol>
         <li>Wake your trainer and tap Connect next to Trainer. The browser shows a list; pick your trainer. Do the same for a heart-rate strap or Click if you have them. Each device needs its own tap, and you pair again on each visit.</li>
         <li>Pick a circuit, from a flat 2 km loop to a 20 km ride over two climbs, and a scene if you want something other than the circuit’s own.</li>
-        <li>Enter your weight, your bike’s weight and your FTP. Weight decides how fast you climb.</li>
+        <li>Enter your weight, your bike’s weight and your FTP under Setup (on your account page once you sign in). Weight decides how fast you climb.</li>
         <li>Dress your rider if you like, then press Ride and start pedalling.</li>
       </ol>
       <div class="shots">
@@ -175,7 +175,7 @@ Main Set 3x
         An account is optional. With one, bikeboi stores your email address, a password hash (never the password), your settings and rider look, your best laps and segment bests, your own workouts, and your rides (the summary and the FIT file) on a server in Iceland run by hlekkir.is. The site sits behind Cloudflare, which sees traffic in transit. Nothing is shared with anyone else, and there are no analytics.
       </p>
       <p>
-        The only cookie is the session cookie that keeps you signed in; it is strictly necessary, so there is no cookie banner. You can download every ride, and delete the whole account from the start screen at any time; the server copy goes immediately and backups expire within 14 days. Questions or requests: <a href="mailto:hrafnkell@gmail.com">hrafnkell@gmail.com</a>.
+        The only cookie is the session cookie that keeps you signed in; it is strictly necessary, so there is no cookie banner. You can download every ride, and delete the whole account from your account page (the user icon at the top) at any time; the server copy goes immediately and backups expire within 14 days. Questions or requests: <a href="mailto:hrafnkell@gmail.com">hrafnkell@gmail.com</a>.
       </p>
     </section>
 

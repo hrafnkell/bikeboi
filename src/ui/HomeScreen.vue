@@ -1,20 +1,20 @@
 <script setup lang="ts">
-// Start screen: devices, circuit choice, scene, pacemaker, rider, setup, ride recovery.
+// Start screen: devices, circuit choice, scene, pacemaker, ride recovery; rider and setup
+// too until you sign in, after which they live on your account page.
 import { computed } from 'vue';
-import { devices } from '../ble/devices.ts';
 import { sceneList } from '../game/scenes.ts';
-import { clamp } from '../format.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { circuits, findCircuit } from '../ride/circuits/index.ts';
 import type { SavedRide } from '../ride/ride-store.ts';
 import { saveSettings } from '../state.ts';
-import type { GearMode } from '../state.ts';
 import CircuitCard from './CircuitCard.vue';
 import DeviceList from './DeviceList.vue';
 import PacerEditor from './PacerEditor.vue';
-import AccountPanel from '../account/AccountPanel.vue';
+import { account } from '../account/session.ts';
+import UserButton from '../account/UserButton.vue';
 import RecoveryCard from './RecoveryCard.vue';
 import RiderEditor from './RiderEditor.vue';
+import SetupFields from './SetupFields.vue';
 import { settingsR } from './store.ts';
 import { useDevices } from './useDevices.ts';
 import WelcomeDialog from './WelcomeDialog.vue';
@@ -46,24 +46,6 @@ function selectScene(id: typeof settingsR.scene) {
 }
 selectScene(sceneOptions.some((o) => o.id === settingsR.scene) ? settingsR.scene : 'auto');
 
-// --- setup ---
-function setNumber(e: Event, key: 'riderMass' | 'bikeMass' | 'ftp', min: number, max: number) {
-  const input = e.target as HTMLInputElement;
-  const v = Number(input.value);
-  settingsR[key] = Number.isFinite(v) ? clamp(Math.round(v), min, max) : settingsR[key];
-  input.value = String(settingsR[key]);
-  saveSettings();
-  devices.setRiderMass(settingsR.riderMass, settingsR.bikeMass);
-}
-function setGearMode(e: Event) {
-  settingsR.gearMode = (e.target as HTMLSelectElement).value as GearMode;
-  saveSettings();
-}
-function setDifficulty(e: Event) {
-  settingsR.difficulty = clamp(Number((e.target as HTMLInputElement).value) / 100, 0, 1);
-  saveSettings();
-}
-
 /** True on the first visit (and false when storage is unavailable, so it never nags every time). */
 function shouldWelcome(): boolean {
   try {
@@ -79,13 +61,15 @@ const welcome = shouldWelcome();
   <main class="screen home">
     <header class="home-head">
       <h1>bikeboi</h1>
-      <a class="btn" href="#about">About</a>
+      <div class="home-head-actions">
+        <a class="btn" href="#about">About</a>
+        <UserButton />
+      </div>
     </header>
     <RecoveryCard
       :resume-label="trainerOn ? 'Resume ride' : 'Resume with simulated power'"
       @resume="(c, r) => emit('resume', c, r)"
     />
-    <AccountPanel />
     <section>
       <h2>Devices</h2>
       <DeviceList />
@@ -118,41 +102,14 @@ const welcome = shouldWelcome();
       <h2>Pacemaker</h2>
       <PacerEditor />
     </section>
-    <section>
+    <!-- signed-in riders find these under the user icon instead -->
+    <section v-if="account.status !== 'in'">
       <h2>Your rider</h2>
       <RiderEditor />
     </section>
-    <section>
+    <section v-if="account.status !== 'in'">
       <h2>Setup</h2>
-      <div class="settings">
-        <label class="field">
-          <span>Rider weight</span>
-          <input type="number" min="30" max="200" step="1" :value="settingsR.riderMass" inputmode="numeric" @change="setNumber($event, 'riderMass', 30, 200)" />
-          <em>kg</em>
-        </label>
-        <label class="field">
-          <span>Bike weight</span>
-          <input type="number" min="4" max="30" step="1" :value="settingsR.bikeMass" inputmode="numeric" @change="setNumber($event, 'bikeMass', 4, 30)" />
-          <em>kg</em>
-        </label>
-        <label class="field">
-          <span>FTP</span>
-          <input type="number" min="50" max="600" step="1" :value="settingsR.ftp" inputmode="numeric" @change="setNumber($event, 'ftp', 50, 600)" />
-          <em>W</em>
-        </label>
-        <label class="field">
-          <span>Gear feel</span>
-          <select :value="settingsR.gearMode" @change="setGearMode">
-            <option value="model">Realistic (speed-aware)</option>
-            <option value="offset">Simple (fixed step per gear)</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Hill difficulty</span>
-          <input type="range" min="0" max="100" step="5" :value="Math.round(settingsR.difficulty * 100)" @input="setDifficulty" />
-          <em>{{ Math.round(settingsR.difficulty * 100) }}%</em>
-        </label>
-      </div>
+      <SetupFields />
     </section>
     <p class="note">Shift with the Click, the on-screen buttons or the up / down arrow keys.</p>
     <button class="btn btn-primary btn-start" @click="emit('start', selected)">
