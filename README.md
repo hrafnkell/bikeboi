@@ -24,11 +24,14 @@ trainer it runs with simulated power.
 
 ```sh
 bun install
-bun run dev        # http://localhost:3000
+bun run dev        # Vite dev server, http://localhost:3000
 bun test
-bun run typecheck
+bun run typecheck  # vue-tsc
 bun run build      # static site in dist/
 ```
+
+The UI is Vue 3 single-file components (`src/ui/*.vue`, `src/App.vue`) built with Vite;
+everything else is plain TypeScript, and the game logic never depends on Vue.
 
 Web Bluetooth only works on `localhost` or HTTPS. To use a phone against the dev server,
 expose it over HTTPS, for example `cloudflared tunnel --url http://localhost:3000` or
@@ -39,7 +42,7 @@ On Linux desktop Chrome, Web Bluetooth may need
 
 ## Deploy
 
-`bun run deploy` (or `deploy/deploy.sh [ssh-host] [path]`) runs the tests, builds, copies
+`bun run deploy` (or `deploy/deploy.sh [ssh-host] [path]`) runs the tests and typecheck, builds, copies
 `dist/`, `server.ts` and `deploy/` to the server and restarts the `bikeboi` systemd user
 service. The reverse-proxy block is in `deploy/Caddyfile`.
 
@@ -100,7 +103,8 @@ more resistance at the same cadence. "Realistic" uses a force-balance model
 - `src/ride/` simulation, circuits, gears, ghost, recorder
 - `src/game/` canvas renderer
 - `src/ble/` trainer / heart-rate / Click device layer
-- `src/ui/` screens
+- `src/ui/` screens as Vue components; `ride-controller.ts` runs the ride and publishes a
+  view-model that `RideScreen.vue` renders
 - `src/vendor/auuki/` Bluetooth, physics and FIT code borrowed from
   [Auuki](https://github.com/dvmarinoff/Auuki); see the README there for what was changed
 

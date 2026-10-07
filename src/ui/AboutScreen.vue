@@ -1,11 +1,189 @@
 <script setup lang="ts">
-import { renderAbout } from './about.ts';
-import LegacyHost from './LegacyHost.vue';
+// About page: what bikeboi is, what you need, and how a ride behaves.
+import { onMounted } from 'vue';
+import connectShot from '../../img/connect.png';
+import pacemakerShot from '../../img/pacemaker.png';
+import rideShot from '../../img/preview.png';
+import resultsShot from '../../img/results.png';
+import riderShot from '../../img/rider_setup.png';
+import setupShot from '../../img/settings.png';
+
+const SOURCE_URL = 'https://github.com/hrafnkell/bikeboi';
 
 const emit = defineEmits<{ back: [] }>();
-const render = (root: HTMLElement) => renderAbout(root, () => emit('back'));
+
+onMounted(() => window.scrollTo(0, 0));
 </script>
 
 <template>
-  <LegacyHost :render="render" />
+  <main class="screen about">
+    <div class="row"><button class="btn" @click="emit('back')">← Back to start</button></div>
+    <h1>About bikeboi</h1>
+    <p class="lead">
+      bikeboi turns an indoor trainer session into a side-scrolling game. You ride laps of a circuit, chase a ghost of your own best lap, shift virtual gears, and take a ride file home at the end. It runs in the browser: nothing to install, no account.
+    </p>
+    <div class="shots shots-hero">
+      <figure class="shot">
+        <img :src="rideShot" alt="A ride in the Tron scene on a phone: the game on top, power, speed, gear and shift buttons below" loading="lazy" />
+        <figcaption>A ride on a phone, in the Tron scene.</figcaption>
+      </figure>
+      <figure class="shot">
+        <img :src="connectShot" alt="The start screen with device connection and the six circuits" loading="lazy" />
+        <figcaption>The start screen: devices and circuits.</figcaption>
+      </figure>
+    </div>
+
+    <section>
+      <h2>Why I made it</h2>
+      <p>
+        Zwift is expensive if you only ride casually. I wanted a simple app for trainer sessions that still simulates a real ride, with gears to shift and a road that goes up and down.
+      </p>
+      <p>
+        Structured workouts weren’t working for me. I push myself harder when there is terrain to get over, so that is what bikeboi gives you.
+      </p>
+    </section>
+
+    <section>
+      <h2>What you need</h2>
+      <ul>
+        <li>A smart trainer that speaks Bluetooth (FTMS, Tacx FE-C or Wahoo). A plain power meter works too, without resistance control.</li>
+        <li>Chrome or Edge on Android, Windows, macOS, Linux or ChromeOS. Safari and Firefox, and every browser on iPhone and iPad, cannot connect to Bluetooth devices from a web page.</li>
+        <li>Optional: a heart-rate strap, and a Zwift Click (the original single-puck one) for shifting.</li>
+        <li>No trainer? You can still try everything with simulated power.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Getting started</h2>
+      <ol>
+        <li>Wake your trainer and tap Connect next to Trainer. The browser shows a list; pick your trainer. Do the same for a heart-rate strap or Click if you have them. Each device needs its own tap, and you pair again on each visit.</li>
+        <li>Pick a circuit, from a flat 2 km loop to a 20 km ride over two climbs, and a scene if you want something other than the circuit’s own.</li>
+        <li>Enter your weight, your bike’s weight and your FTP. Weight decides how fast you climb.</li>
+        <li>Dress your rider if you like, then press Ride and start pedalling.</li>
+      </ol>
+      <div class="shots">
+        <figure class="shot shot-wide">
+          <img :src="setupShot" alt="Rider weight, bike weight, FTP, gear feel and hill difficulty settings" loading="lazy" />
+          <figcaption>Weights, FTP, gear feel and hill difficulty.</figcaption>
+        </figure>
+        <figure class="shot shot-wide">
+          <img :src="riderShot" alt="The rider editor with a live preview and colour pickers" loading="lazy" />
+          <figcaption>Helmet, kit, frame, tyres and wheels are yours to choose.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>How a ride behaves</h2>
+      <ul>
+        <li>Your speed comes from your power, the gradient and your weight, the same way it would outside. More watts or less weight means faster.</li>
+        <li>The trainer gets harder on climbs and easier on descents. Hill difficulty scales how much of the gradient you feel; it never changes your speed.</li>
+        <li>Gears change how hard the pedals feel at a given cadence, not how fast you go for a given power. There are 24, and every ride starts in gear 12.</li>
+        <li>The clock runs only while you are moving. Stop pedalling and roll to a halt, and the ride waits for you.</li>
+        <li>Each time you cross the line a lap is timed. Your best lap on each circuit is kept in this browser and rides beside you as a translucent ghost, with the gap shown in seconds.</li>
+        <li>Climbs, descents and sprints are timed as segments. As you approach one, a panel shows what is coming; on it, you see how much is left, an estimated finishing time and how you compare with your best. Your best on each segment is kept in this browser.</li>
+        <li>The cards show live power, cadence and heart rate with their highest values so far, plus speed, gradient, distance, metres climbed and an estimate of calories burned.</li>
+        <li>Switching to another app or tab pauses the ride. The screen is kept awake while you ride.</li>
+      </ul>
+      <dl class="keys">
+        <dt>Harder / easier gear</dt>
+        <dd>Zwift Click, the + and − buttons, or the up / down arrow keys</dd>
+        <dt>Pause</dt>
+        <dd>The pause button or Space</dd>
+        <dt>Simulated power</dt>
+        <dd>The slider, or the left / right arrow keys (only without a trainer)</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>The pacemaker</h2>
+      <p>
+        The pacemaker is a robot rider that shares the road with you, so there is always someone to keep up with. It weighs what you weigh, so the hills cost it exactly what they cost you. Switch it on under Pacemaker on the start screen.
+      </p>
+      <div class="shots">
+        <figure class="shot">
+          <img :src="pacemakerShot" alt="A ride with the robot pacemaker a few metres ahead, and the workout step, time left and gap shown under the lap timer" loading="lazy" />
+          <figcaption>The robot five metres up the road, early in a workout.</figcaption>
+        </figure>
+      </div>
+      <h3>Steady watts</h3>
+      <p>
+        The robot holds one power for the whole ride, for example 200 W. Stay with it and you are riding at 200 W yourself, whatever the road does.
+      </p>
+      <h3>Workouts</h3>
+      <p>
+        The robot follows a structured session: warm-up, intervals, recoveries, cool-down. A few are built in, and you can write your own or paste one from intervals.icu, which uses the same format:
+      </p>
+      <pre class="code">Warmup
+- 10m ramp 50-75%
+
+Main Set 3x
+- 10m 240w
+- 2m 180w
+
+- Cooldown 8m 55%</pre>
+      <ul>
+        <li>One step per line, starting with a dash: a time (10m, 30s, 1h, 5m30s), then a power target.</li>
+        <li>Power can be watts (240w), a percentage of your FTP (75%), a range (88-93%) or a zone (Z1 to Z7). The zones are the standard seven, as percentages of the FTP you entered.</li>
+        <li>"ramp" slides between two powers over the step, and "freeride" leaves a step open.</li>
+        <li>A line such as "3x" or "Main Set 3x" repeats the steps under it, up to the next blank line.</li>
+        <li>Words before the time name the step. Distance steps and heart-rate or pace targets are not supported; the editor tells you which line it cannot read.</li>
+      </ul>
+      <h3>What you see while riding</h3>
+      <ul>
+        <li>The robot on the road with its current power above it. When it is out of view, an arrow at the edge of the screen shows which way it went.</li>
+        <li>A line under the lap timer with how far ahead or behind it is, in metres and in seconds. Red with a plus means you are behind; green with a minus means you are ahead.</li>
+        <li>With a workout: the name of the step, the time left in it and what comes next. The power card shows the target and turns it green while you are on it. A banner and a short buzz mark each change of step.</li>
+        <li>The robot rides only while your clock runs. Stop, and it waits for you.</li>
+      </ul>
+      <h3>Hard mode</h3>
+      <p>
+        Normally the pacemaker is only something to chase: the trainer keeps simulating the road and your power is up to you. In hard mode the trainer takes over and sets its resistance so that you put out the pacemaker’s power at any cadence. This is what other apps call ERG mode.
+      </p>
+      <ul>
+        <li>Hills stop changing the effort. They still change your speed, because speed comes from your power and the gradient.</li>
+        <li>The + and − buttons no longer change gear. They make the whole session 5% harder or easier, from 50% to 150%, and the robot follows.</li>
+        <li>During a free-ride step, and once the workout is over, the trainer goes back to the road and the buttons go back to gears.</li>
+        <li>If you let your cadence drop very low the trainer has to push back harder to hold the power, which can grind you to a halt. Keep the pedals turning, or ease the intensity.</li>
+        <li>Hard mode needs a trainer that can hold a power target, which most smart trainers can. It has been tried with simulated power only so far, not yet on a real trainer.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>After the ride</h2>
+      <p>
+        End the ride from the pause menu. The summary shows your totals, lap times and graphs of power and heart rate, and a button to download the ride as a FIT file. Upload that file to Strava, Garmin Connect or intervals.icu like any other activity.
+      </p>
+      <div class="shots">
+        <figure class="shot">
+          <img :src="resultsShot" alt="The summary screen with time, distance, power, speed, climbing and calories, and a Download FIT file button" loading="lazy" />
+          <figcaption>The summary, with the FIT download.</figcaption>
+        </figure>
+      </div>
+      <p>
+        If the browser closes mid-ride, nothing is lost. The next time you open bikeboi, the start screen offers to resume the ride where it stopped, or to save what was recorded.
+      </p>
+    </section>
+
+    <section>
+      <h2>Good to know</h2>
+      <ul>
+        <li>Everything stays on your device. Settings, best laps and rides are stored in this browser; nothing is uploaded and there are no accounts.</li>
+        <li>Calories are estimated from the work you did at the pedals, assuming typical cycling efficiency. Heart rate is not used.</li>
+        <li>bikeboi is new. It has been tested far more with simulated power than on real trainers, so gear feel in particular may need tuning. The "Simple" gear feel is there as a fallback.</li>
+        <li>
+          <span>
+            It is free software under the AGPL-3.0, built on Bluetooth, physics and FIT code from
+            <a href="https://github.com/dvmarinoff/Auuki" target="_blank" rel="noopener">Auuki</a>. The source is on
+            <a :href="SOURCE_URL" target="_blank" rel="noopener">GitHub</a>.
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <div class="row"><button class="btn" @click="emit('back')">← Back to start</button></div>
+    <footer class="footer">
+      A <a href="https://www.hlekkir.is" target="_blank" rel="noopener">hlekkir.is</a> project.
+    </footer>
+  </main>
 </template>

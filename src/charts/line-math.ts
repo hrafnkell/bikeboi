@@ -70,3 +70,100 @@ export function timeTicks(durationS: number, maxTicks = 6): number[] {
   for (let t = 0; t <= durationS + 1e-6; t += step) ticks.push(t);
   return ticks;
 }
+
+// --- geometry for one line chart --------------------------------------------------------
+
+export const CHART_HEIGHT = 170;
+export const CHART_MARGIN = { left: 38, right: 14, top: 16, bottom: 22 };
+
+export interface LinePoint {
+  t: number;
+  v: number;
+  x: number;
+  y: number;
+}
+
+export interface LineLayout {
+  /** Plot area, px. */
+  plotX: number;
+  plotY: number;
+  plotWidth: number;
+  plotHeight: number;
+  /** Value axis: lines and labels. */
+  valueTicks: Array<{ value: number; y: number; axis: boolean }>;
+  /** Time axis labels (seconds and their x), with the first anchored at its start. */
+  timeTicks: Array<{ t: number; x: number; anchor: 'start' | 'middle' }>;
+  /** SVG path data for the line (broken at gaps) and the area under it down to the baseline. */
+  linePath: string;
+  areaPath: string;
+  /** The highest reading, kept exact through the downsampling. */
+  peak: LinePoint;
+  peakLabel: { x: number; y: number; anchor: 'start' | 'middle' | 'end'; text: string };
+  /** Every drawn point with its screen position, for hover. */
+  points: LinePoint[];
+}
+
+/**
+ * Everything the chart template needs for a series of one reading per second, at a
+ * given width. Returns null when there is nothing to draw.
+ */
+export function layoutLine(values: Array<number | null>, width: number, zeroBased: boolean): LineLayout | null {
+  const M = CHART_MARGIN;
+  const duration = Math.max(1, values.length - 1);
+  const pw = Math.max(10, width - M.left - M.right);
+  const ph = CHART_HEIGHT - M.top - M.bottom;
+  const sampled = downsample(values, Math.max(40, Math.floor(pw / 2)));
+  const peakAt = restorePeak(sampled, values);
+  const present = sampled.filter((p): p is { t: number; v: number } => p.v !== null);
+  if (present.length === 0 || peakAt < 0) return null;
+
+  const lo = zeroBased ? 0 : Math.min(...present.map((p) => p.v));
+  const hi = Math.max(...present.map((p) => p.v));
+  const ticks = niceTicks(zeroBased ? 0 : lo - (hi - lo) * 0.1 - 1, hi + (hi - lo) * 0.05 + 1, 4);
+  const y0 = ticks[0];
+  const y1 = ticks[ticks.length - 1];
+  const x = (t: number) => M.left + (t / duration) * pw;
+  const y = (v: number) => M.top + ph - ((v - y0) / (y1 - y0)) * ph;
+
+  // line (broken at gaps) and area wash
+  let linePath = '';
+  let areaPath = '';
+  let run: Array<{ t: number; v: number }> = [];
+  const flush = () => {
+    if (run.length === 0) return;
+    const d = run.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+    linePath += d;
+    areaPath += `${d}L${x(run[run.length - 1].t).toFixed(1)},${y(y0).toFixed(1)}L${x(run[0].t).toFixed(1)},${y(y0).toFixed(1)}Z`;
+    run = [];
+  };
+  for (const p of sampled) {
+    if (p.v === null) flush();
+    else run.push({ t: p.t, v: p.v });
+  }
+  flush();
+
+  const peakRaw = sampled[peakAt] as { t: number; v: number };
+  const peakX = x(peakRaw.t);
+  const peak: LinePoint = { t: peakRaw.t, v: peakRaw.v, x: peakX, y: y(peakRaw.v) };
+
+  return {
+    plotX: M.left,
+    plotY: M.top,
+    plotWidth: pw,
+    plotHeight: ph,
+    valueTicks: ticks.map((value) => ({ value, y: y(value), axis: value === y0 })),
+    timeTicks: timeTicks(duration, Math.max(2, Math.floor(pw / 70))).map((t) => ({
+      t, x: x(t), anchor: t === 0 ? 'start' : 'middle',
+    })),
+    linePath,
+    areaPath,
+    peak,
+    peakLabel: {
+      x: Math.min(M.left + pw - 4, Math.max(M.left + 4, peakX)),
+      y: Math.max(11, peak.y - 8),
+      anchor: peakX > M.left + pw - 30 ? 'end' : peakX < M.left + 30 ? 'start' : 'middle',
+      text: `${Math.round(peak.v)}`,
+    },
+    points: present.map((p) => ({ t: p.t, v: p.v, x: x(p.t), y: y(p.v) })),
+  };
+}
