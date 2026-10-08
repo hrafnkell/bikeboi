@@ -120,6 +120,22 @@ describe('segment tracker', () => {
     expect(tracker.active(1600, t)).toBeNull();
   });
 
+  test('a segment ghost waits on the line, rides the best trace, then lingers and goes', () => {
+    const tracker = new SegmentTracker([seg], 4000, memoryStore());
+    expect(tracker.ghosts(900, 10)).toEqual([]); // no best yet
+    let t = ride(tracker, 0, 4000, 10); // lap 1 at 10 m/s: 50 s best
+    expect(tracker.ghosts(4000, t)).toEqual([]);
+    t = ride(tracker, 4000, 4900, 8, t);
+    // waiting at the start of the second lap's climb
+    expect(tracker.ghosts(4900, t)).toEqual([{ segment: seg, distance: 5000 }]);
+    const t0 = t = ride(tracker, 4900, 5000, 8, t);
+    t = ride(tracker, 5000, 5160, 8, t); // 20 s in: the ghost is 200 m along
+    const [g] = tracker.ghosts(5160, t);
+    expect(g.distance).toBeCloseTo(5200, 6);
+    expect(tracker.ghosts(5160, t0 + 60)).toEqual([]); // finished more than 3 s ago
+    expect(tracker.ghosts(5160, t0 + 52)[0].distance).toBeCloseTo(5500, 6); // lingering at the top
+  });
+
   test('second lap is compared against the first, and only a faster one becomes the best', () => {
     const efforts: SegmentEffort[] = [];
     const store = memoryStore();

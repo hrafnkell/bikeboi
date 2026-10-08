@@ -16,6 +16,7 @@ import {
   GEAR_COUNT, REFERENCE_GEAR, cadenceFor, clampGear, gearFactor, gearedSimGrade, offsetSimGrade, trainerSpeedFor,
 } from '../ride/gears.ts';
 import { TraceRecorder, gapSeconds, ghostLapDistance, loadGhost, saveGhost } from '../ride/ghost.ts';
+import { powerZone } from '../ride/zones.ts';
 import type { RideOutcome } from '../ride/outcome.ts';
 import { Pacer, Track } from '../ride/pacer.ts';
 import { Recorder } from '../ride/recorder.ts';
@@ -525,6 +526,9 @@ export function createRideController(
       });
     }
     if (pacer) others.push({ kind: 'pacer', label: `${pacer.power} W`, distance: pacer.renderDistance(sim.alpha) });
+    for (const g of segments.ghosts(sim.renderDistance, sim.renderTime)) {
+      others.push({ kind: 'segment', label: `best ${g.segment.type}`, distance: g.distance, color: segmentColors[g.segment.type] });
+    }
     const posture = paused
       ? stance.current
       : stance.update(dt, { power: started ? recentPower : live.power, ftp: settings.ftp, speed: sim.speed, grade: sim.grade });
@@ -534,6 +538,7 @@ export function createRideController(
       cadence: paused ? 0 : live.cadence,
       others,
       stance: posture,
+      zone: started && !paused ? powerZone(shownPower, settings.ftp) : 0,
       dt: paused ? 0 : dt,
     });
     raf = requestAnimationFrame(frame);

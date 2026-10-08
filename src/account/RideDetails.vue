@@ -7,6 +7,7 @@ import type { FitTrack } from '../ride/fit-read.ts';
 import { circuits } from '../ride/circuits/index.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import LineChart from '../ui/LineChart.vue';
+import { settings } from '../state.ts';
 import { describeError } from './session.ts';
 
 const props = defineProps<{ rideId: string; circuitId: string }>();
@@ -76,6 +77,7 @@ onMounted(async () => {
         />
         <LineChart
           title="Power" unit="W" color="#3987e5" :zero-based="true" :values="power" :summary="`avg ${stats(power).avg} W · max ${stats(power).max} W`"
+          :zones-ftp="settings.ftp"
           :secondary="hasHeart ? { title: 'Heart rate', unit: 'bpm', color: '#e66767', zeroBased: false, values: heart, summary: `avg ${stats(heart).avg} bpm · max ${stats(heart).max} bpm` } : null"
         />
         <p v-if="!hasHeart" class="note">No heart-rate data in this ride.</p>

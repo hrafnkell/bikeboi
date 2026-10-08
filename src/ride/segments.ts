@@ -1,6 +1,6 @@
 // Segments: timed stretches of a circuit (climbs, descents, sprints) with personal bests.
 
-import { TraceRecorder, timeAt } from './ghost.ts';
+import { TraceRecorder, distanceAt, timeAt } from './ghost.ts';
 import type { GhostTrace } from './ghost.ts';
 
 export type SegmentType = 'climb' | 'descent' | 'sprint';
@@ -180,6 +180,13 @@ interface Running {
 }
 
 const UPCOMING_WITHIN = 200; // metres
+const GHOST_LINGER = 3; // seconds a finished segment ghost stays at the line
+
+export interface SegmentGhost {
+  segment: Segment;
+  /** World distance (m). */
+  distance: number;
+}
 
 export class SegmentTracker {
   readonly efforts: SegmentEffort[] = [];
@@ -283,6 +290,25 @@ export class SegmentTracker {
       best: trace?.lapTime ?? null,
       gap: trace ? elapsed - timeAt(trace, done) : null,
     };
+  }
+
+  /**
+   * Where the best efforts are right now: a ghost per running segment with a stored best,
+   * riding its trace from the segment start, plus one waiting on the line of a segment the
+   * rider is about to reach. A ghost that has finished lingers at the end for a moment.
+   */
+  ghosts(distance: number, time: number): SegmentGhost[] {
+    const out: SegmentGhost[] = [];
+    for (const run of this.running.values()) {
+      const trace = this.best.get(run.segment.id);
+      if (!trace) continue;
+      const elapsed = time - run.startTime;
+      if (elapsed > trace.lapTime + GHOST_LINGER) continue;
+      out.push({ segment: run.segment, distance: run.startDistance + distanceAt(trace, Math.min(elapsed, trace.lapTime)) });
+    }
+    const next = this.upcoming(distance);
+    if (next && next.best !== null) out.push({ segment: next.segment, distance: distance + next.distanceTo });
+    return out;
   }
 
   /** The next segment start within a couple of hundred metres, if any. */

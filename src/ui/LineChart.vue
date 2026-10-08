@@ -4,6 +4,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import { CHART_HEIGHT, layoutLine } from '../charts/line-math.ts';
 import { fmtClock } from '../format.ts';
+import { POWER_ZONES, powerZone, timeInZones, zoneColor } from '../ride/zones.ts';
 
 export interface ChartSeries {
   title: string;
@@ -18,7 +19,11 @@ export interface ChartSeries {
   summary: string;
 }
 
-const props = defineProps<ChartSeries & { secondary?: ChartSeries | null }>();
+const props = defineProps<ChartSeries & {
+  secondary?: ChartSeries | null;
+  /** Colour the area under the primary line by power zone against this FTP. */
+  zonesFtp?: number;
+}>();
 
 const plot = useTemplateRef<HTMLElement>('plot');
 const svg = useTemplateRef<SVGSVGElement>('svg');
@@ -30,6 +35,28 @@ const layout2 = computed(() => (
   width.value > 0 && props.secondary ? layoutLine(props.secondary.values, width.value, props.secondary.zeroBased, opts.value) : null
 ));
 const label = computed(() => [props.title, props.secondary?.title].filter(Boolean).join(' and '));
+
+// zone wash: one slice per drawn point, from the line down to the baseline
+const slices = computed(() => {
+  const l = layout.value;
+  const ftp = props.zonesFtp ?? 0;
+  if (!l || !(ftp > 0)) return [];
+  const base = l.plotY + l.plotHeight;
+  const pts = l.points;
+  return pts.map((p, i) => {
+    const x0 = i === 0 ? p.x : (pts[i - 1].x + p.x) / 2;
+    const x1 = i === pts.length - 1 ? p.x : (p.x + pts[i + 1].x) / 2;
+    return { x: x0, w: Math.max(0.5, x1 - x0), y: p.y, h: Math.max(0, base - p.y), color: zoneColor(powerZone(p.v, ftp)) };
+  });
+});
+const zoneShares = computed(() => {
+  const ftp = props.zonesFtp ?? 0;
+  if (!(ftp > 0)) return [];
+  const seconds = timeInZones(props.values, ftp);
+  const total = seconds.slice(1).reduce((a, b) => a + b, 0);
+  if (total === 0) return [];
+  return POWER_ZONES.map((z) => ({ ...z, seconds: seconds[z.zone], share: seconds[z.zone] / total }));
+});
 
 // hover: second of ride time, or null
 const hovered = ref<number | null>(null);
@@ -106,7 +133,10 @@ onBeforeUnmount(() => {
             <text :x="layout.plotX - 6" :y="tick.y + 3.5" class="chart-tick" text-anchor="end">{{ tick.value }}</text>
           </template>
           <text v-for="tick in layout.timeTicks" :key="tick.t" :x="tick.x" :y="CHART_HEIGHT - 6" class="chart-tick" :text-anchor="tick.anchor">{{ fmtClock(tick.t) }}</text>
-          <path v-if="zeroBased" :d="layout.areaPath" :fill="color" fill-opacity="0.1" />
+          <template v-if="slices.length">
+            <rect v-for="(sl, i) in slices" :key="i" :x="sl.x" :y="sl.y" :width="sl.w + 0.6" :height="sl.h" :fill="sl.color" fill-opacity="0.45" shape-rendering="crispEdges" />
+          </template>
+          <path v-else-if="zeroBased" :d="layout.areaPath" :fill="color" fill-opacity="0.1" />
           <path :d="layout.linePath" fill="none" :stroke="color" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
           <circle :cx="layout.peak.x" :cy="layout.peak.y" r="4" :fill="color" class="chart-dot" />
           <text :x="layout.peakLabel.x" :y="layout.peakLabel.y" class="chart-label" :text-anchor="layout.peakLabel.anchor">{{ layout.peakLabel.text }}</text>
@@ -124,7 +154,13 @@ onBeforeUnmount(() => {
           <rect :x="(layout ?? layout2)!.plotX" y="0" :width="(layout ?? layout2)!.plotWidth" :height="CHART_HEIGHT" fill="transparent" @pointermove="show" @pointerdown="show" @pointerleave="hide" @pointercancel="hide" />
         </template>
       </svg>
-      <div class="chart-tip" :hidden="hovered === null" :style="tipStyle">
+      <div v-if="zoneShares.length" class="zone-bar" role="list" aria-label="Time in power zones">
+      <span
+        v-for="z in zoneShares" :key="z.zone" role="listitem" class="zone-seg" :style="{ flexGrow: Math.max(z.share, 0.002), background: z.color }"
+        :title="`Z${z.zone} ${z.name}: ${fmtClock(z.seconds)}`"
+      ><span v-if="z.share >= 0.08">Z{{ z.zone }} {{ fmtClock(z.seconds) }}</span></span>
+    </div>
+    <div class="chart-tip" :hidden="hovered === null" :style="tipStyle">
         <span class="chart-tip-time">{{ hovered !== null ? fmtClock(Math.max(0, hovered)) : '' }}</span>
         <span v-if="hoverPoint" class="chart-series">
           <i class="chart-key" :style="{ background: color }"></i>

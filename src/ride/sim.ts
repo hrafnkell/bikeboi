@@ -174,6 +174,12 @@ export class RideSim {
     return Math.max(0, this.lapTime - (STEP - this.acc));
   }
 
+  /** Ride time matching renderDistance. */
+  get renderTime(): number {
+    if (!this.moving) return this.time;
+    return Math.max(0, this.time - (STEP - this.acc));
+  }
+
   get grade(): number {
     return this.circuit.gradeAt(this.distance);
   }

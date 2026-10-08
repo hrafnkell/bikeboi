@@ -252,6 +252,8 @@ a { color: var(--accent); }
 .chart-label { fill: var(--text); font-size: 11px; font-weight: 600; }
 .chart-dot { stroke: var(--panel); stroke-width: 2; pointer-events: none; }
 .chart-hair { stroke: var(--muted); stroke-width: 1; pointer-events: none; }
+.zone-bar { display: flex; height: 18px; border-radius: 5px; overflow: hidden; margin: 6px 0 2px; gap: 1px; }
+.zone-seg { display: flex; align-items: center; justify-content: center; min-width: 0; font-size: 0.7rem; font-weight: 600; color: #0b0f14; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
 .chart-tip {
   position: absolute; top: 4px; display: flex; align-items: center; gap: 6px; pointer-events: none;
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px;

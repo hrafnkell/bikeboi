@@ -1,6 +1,7 @@
 // Canvas renderer: parallax scenery, terrain from the circuit profile, rider and ghost.
 
 import type { Circuit } from '../ride/circuit.ts';
+import { zoneColor } from '../ride/zones.ts';
 import { defaultRiderLook, drawRiderFigure, drawRobotFigure, monoPaint, paintFor, robotColors } from './rider.ts';
 import type { RiderLook, RiderPaint, RobotColors } from './rider.ts';
 import { findScene } from './scenes.ts';
@@ -11,11 +12,13 @@ import { hash, makeCamera, noise, toScreenX, toScreenY, visibleRange } from './w
 import type { Camera, Viewport } from './world.ts';
 
 export interface OtherRider {
-  kind: 'ghost' | 'pacer';
+  kind: 'ghost' | 'pacer' | 'segment';
   /** World distance (m). */
   distance: number;
   /** Short tag shown above the rider. */
   label: string;
+  /** Tint for a segment ghost (its segment's colour); the others have fixed colours. */
+  color?: string;
 }
 
 export interface Scene {
@@ -27,6 +30,8 @@ export interface Scene {
   others: OtherRider[];
   /** How the rider sits; eased towards over a few hundred milliseconds. */
   stance?: StanceId;
+  /** Power zone 1..7 being ridden right now, 0 for none; paints the lap strip as it is ridden. */
+  zone?: number;
   /** Seconds since the previous frame. */
   dt: number;
 }
@@ -59,6 +64,12 @@ export class Renderer {
   private anchorShift = 0;
   private profile: HTMLCanvasElement | null = null;
   private profileKey = '';
+  /** Zone painted on each column of the lap strip by the latest pass (0 = not ridden yet). */
+  private effort: Uint8Array = new Uint8Array(0);
+  private effortCanvas: HTMLCanvasElement | null = null;
+  private effortBars: Float32Array = new Float32Array(0);
+  private effortColumn = -1;
+  private segmentPaints = new Map<string, RiderPaint>();
   private palette: Palette;
   private style: SceneStyle;
   private clock = 0;
@@ -71,7 +82,7 @@ export class Renderer {
     private canvas: HTMLCanvasElement,
     private circuit: Circuit,
     scene: SceneId = circuit.scene,
-    look: RiderLook = defaultRiderLook,
+    private look: RiderLook = defaultRiderLook,
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2d canvas is not available');
@@ -139,7 +150,7 @@ export class Renderer {
       const x = toScreenX(cam, other.distance);
       // on screen while any part of the bike shows; otherwise an edge marker takes over
       if (x > -sprite * 0.8 && x < width + sprite * 0.5) {
-        this.drawRider(cam, other.distance, sprite, this.ghostCrank + i * 1.3, this.wheelAngle, other.kind);
+        this.drawRider(cam, other.distance, sprite, this.ghostCrank + i * 1.3, this.wheelAngle, other);
         this.drawTag(cam, other, sprite);
       } else {
         this.drawOffscreen(cam, other, x < 0 ? -1 : 1, i);
@@ -462,8 +473,9 @@ export class Renderer {
   }
 
   private drawRider(
-    cam: Camera, distance: number, s: number, crank: number, wheel: number, other: OtherRider['kind'] | null,
+    cam: Camera, distance: number, s: number, crank: number, wheel: number, rider: OtherRider | null,
   ): void {
+    const other = rider?.kind ?? null;
     const { ctx, circuit } = this;
     const half = (0.5 * s) / cam.pxPerM;
     const xr = toScreenX(cam, distance - half);
@@ -480,8 +492,9 @@ export class Renderer {
       // the pacemaker is a solid robot, not a see-through copy of the rider
       drawRobotFigure(ctx, this.robot, { crank, wheel, headlight: false });
     } else {
-      if (other === 'ghost') ctx.globalAlpha = this.style.neon ? 0.65 : 0.4;
-      drawRiderFigure(ctx, other ? this.ghostPaint : this.riderPaint, {
+      if (other) ctx.globalAlpha = this.style.neon ? 0.65 : 0.4;
+      const paint = other === 'segment' && rider?.color ? this.segmentPaint(rider.color) : other ? this.ghostPaint : this.riderPaint;
+      drawRiderFigure(ctx, paint, {
         crank, wheel, headlight: this.style.headlight && !other,
         posture: other ? undefined : this.posture,
       });
@@ -489,8 +502,18 @@ export class Renderer {
     ctx.restore();
   }
 
-  private colorOf(kind: OtherRider['kind']): string {
-    return kind === 'ghost' ? this.style.ghost : this.style.pacer;
+  private colorOf(other: OtherRider): string {
+    if (other.kind === 'segment') return other.color ?? this.style.ghost;
+    return other.kind === 'ghost' ? this.style.ghost : this.style.pacer;
+  }
+
+  private segmentPaint(color: string): RiderPaint {
+    let paint = this.segmentPaints.get(color);
+    if (!paint) {
+      paint = monoPaint(this.look, color);
+      this.segmentPaints.set(color, paint);
+    }
+    return paint;
   }
 
   /** Name tag above another rider, so ghost and pacemaker can be told apart. */
@@ -505,7 +528,7 @@ export class Renderer {
     ctx.beginPath();
     ctx.roundRect(x - w / 2, y - h, w, h, 4);
     ctx.fill();
-    ctx.fillStyle = this.colorOf(other.kind);
+    ctx.fillStyle = this.colorOf(other);
     ctx.fillRect(x - w / 2, y - 2, w, 2);
     ctx.fillStyle = '#e9eef3';
     ctx.textAlign = 'center';
@@ -518,7 +541,7 @@ export class Renderer {
     const { ctx, viewport } = this;
     const x = side < 0 ? 16 : viewport.width - 16;
     const y = cam.anchorY - viewport.height * 0.12 - index * 26;
-    ctx.fillStyle = this.colorOf(other.kind);
+    ctx.fillStyle = this.colorOf(other);
     ctx.globalAlpha = 0.9;
     ctx.beginPath();
     ctx.moveTo(x + side * 8, y);
@@ -597,13 +620,27 @@ export class Renderer {
       p.fill();
       const range = Math.max(8, circuit.maxAltitude - circuit.minAltitude);
       const n = w - pad * 2;
+      // what was painted so far carries over to the new size, column by column
+      const previous = this.effort;
+      this.effort = new Uint8Array(n);
+      for (let i = 0; i < n; i++) this.effort[i] = previous.length ? previous[Math.floor((i / n) * previous.length)] : 0;
+      this.effortBars = new Float32Array(n);
       for (let i = 0; i < n; i++) {
         const d = (i / n) * circuit.length;
         const a = (circuit.altitudeAt(d) - circuit.minAltitude) / range;
         const bar = 3 + a * (h - pad * 2 - 3);
+        this.effortBars[i] = bar;
         p.fillStyle = gradeColor(circuit.gradeAt(d));
         p.fillRect(pad + i, h - pad - bar, 1.2, bar);
       }
+      const e = document.createElement('canvas');
+      e.width = c.width;
+      e.height = c.height;
+      const ep = e.getContext('2d')!;
+      ep.scale(this.dpr, this.dpr);
+      for (let i = 0; i < n; i++) if (this.effort[i]) this.paintEffort(ep, i, h, pad);
+      this.effortCanvas = e;
+      this.effortColumn = -1;
       // segments underline the stretch they cover
       for (const s of circuit.segments) {
         p.fillStyle = segmentColors[s.type];
@@ -616,6 +653,8 @@ export class Renderer {
       this.profileKey = key;
     }
     ctx.drawImage(this.profile, x0, y0, w, h);
+    this.trackEffort(scene, w - pad * 2, h, pad);
+    if (this.effortCanvas) ctx.drawImage(this.effortCanvas, x0, y0, w, h);
 
     const range = Math.max(8, circuit.maxAltitude - circuit.minAltitude);
     const dot = (distance: number, color: string, radius: number) => {
@@ -631,7 +670,42 @@ export class Renderer {
       ctx.fill();
       ctx.stroke();
     };
-    for (const other of scene.others) dot(other.distance, this.colorOf(other.kind), 3.5);
+    for (const other of scene.others) dot(other.distance, this.colorOf(other), 3.5);
     dot(scene.distance, '#ffffff', 4.5);
+  }
+
+  /** Paint the columns the rider crossed since the last frame with the zone being ridden. */
+  private trackEffort(scene: Scene, n: number, h: number, pad: number): void {
+    const ep = this.effortCanvas?.getContext('2d');
+    if (!ep || n <= 0) return;
+    const { circuit } = this;
+    const inLap = ((scene.distance % circuit.length) + circuit.length) % circuit.length;
+    const column = Math.min(n - 1, Math.floor((inLap / circuit.length) * n));
+    const zone = scene.zone ?? 0;
+    if (this.effortColumn < 0 || scene.dt <= 0) {
+      this.effortColumn = column;
+      return;
+    }
+    // walk forward from the previous column, wrapping at the lap line; a jump backwards
+    // (a restored ride, or standing still) paints nothing
+    let steps = column - this.effortColumn;
+    if (steps < 0) steps += n;
+    if (steps > n / 2) steps = 0;
+    for (let k = 1; k <= steps; k++) {
+      const i = (this.effortColumn + k) % n;
+      if (this.effort[i] !== zone) {
+        this.effort[i] = zone;
+        this.paintEffort(ep, i, h, pad);
+      }
+    }
+    this.effortColumn = column;
+  }
+
+  private paintEffort(ep: CanvasRenderingContext2D, i: number, h: number, pad: number): void {
+    const bar = this.effortBars[i];
+    ep.clearRect(pad + i, 0, 1.2, h);
+    if (!this.effort[i]) return;
+    ep.fillStyle = zoneColor(this.effort[i]);
+    ep.fillRect(pad + i, h - pad - bar, 1.2, bar);
   }
 }

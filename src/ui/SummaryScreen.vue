@@ -10,6 +10,7 @@ import { PEAK_WINDOWS, peakLabel, peakPowers } from '../ride/peaks.ts';
 import { describeSegment } from '../ride/segments.ts';
 import type { SegmentEffort } from '../ride/segments.ts';
 import LineChart from './LineChart.vue';
+import { settings } from '../state.ts';
 
 const props = defineProps<{ outcome: RideOutcome }>();
 const emit = defineEmits<{ done: [] }>();
@@ -123,7 +124,7 @@ function download() {
     <p v-if="workoutLine" class="pacer-result">{{ workoutLine }}</p>
     <p v-if="pacerLine" class="pacer-result">{{ pacerLine }}</p>
     <section v-if="hasCharts && powerChart" class="charts">
-      <LineChart title="Power" unit="W" color="#3987e5" :zero-based="true" :values="powerChart.values" :summary="powerChart.summary" :secondary="heartSeries" />
+      <LineChart title="Power" unit="W" color="#3987e5" :zero-based="true" :values="powerChart.values" :summary="powerChart.summary" :secondary="heartSeries" :zones-ftp="settings.ftp" />
       <p v-if="!heartChart" class="note">No heart-rate data was recorded, so there is no heart-rate line.</p>
     </section>
     <section v-if="outcome.laps.length > 0">
