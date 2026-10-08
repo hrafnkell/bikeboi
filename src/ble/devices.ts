@@ -174,6 +174,7 @@ function startWatchdog(): void {
     if (Date.now() - lastPowerAt > POWER_TIMEOUT_MS) {
       live.power = 0;
       live.cadence = 0;
+      live.wheelSpeed = 0;
     }
   }, 1000);
 }
@@ -189,6 +190,7 @@ function zeroMetrics(kind: VendorKind): void {
   if (kind === 'trainer') {
     live.power = 0;
     live.cadence = 0;
+    live.wheelSpeed = 0;
     if (infos.hrm.status !== 'connected') live.heartRate = 0;
   } else {
     live.heartRate = 0;
@@ -213,8 +215,10 @@ function onData(kind: VendorKind, data: unknown): void {
   }
   if (isNumber(d.cadence)) live.cadence = Math.max(0, d.cadence);
 
-  // FE-C pages carry placeholder zeros for heart rate
+  // FE-C pages carry placeholder zeros for heart rate and speed
   const fromFec = 'dataPage' in d;
+  // FTMS reports its wheel speed in km/h
+  if (!fromFec && isNumber(d.speed)) live.wheelSpeed = Math.max(0, d.speed) / 3.6;
   if (!fromFec && isNumber(d.heartRate) && d.heartRate > 0 && infos.hrm.status !== 'connected') {
     live.heartRate = d.heartRate;
   }

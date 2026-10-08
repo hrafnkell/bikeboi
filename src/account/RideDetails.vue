@@ -9,8 +9,12 @@ import type { Circuit } from '../ride/circuit.ts';
 import LineChart from '../ui/LineChart.vue';
 import { settings } from '../state.ts';
 import { describeError } from './session.ts';
+import { decodeTrace } from '../ride/trace.ts';
 
-const props = defineProps<{ rideId: string; circuitId: string }>();
+const props = defineProps<{ rideId: string; circuitId: string; trace?: unknown }>();
+
+// diagnostics kept beside the file: gear, the trainer's wheel speed and what it was told
+const trace = computed(() => decodeTrace(props.trace));
 
 const track = ref<FitTrack | null>(null);
 const error = ref('');
@@ -43,6 +47,25 @@ const power = computed(() => (track.value ? perSecond(track.value, track.value.p
 const heart = computed(() => (track.value ? perSecond(track.value, track.value.heartRate, null) : []));
 const altitude = computed(() => (track.value ? perSecond(track.value, track.value.altitude, null as number | null) : []));
 const hasHeart = computed(() => heart.value.filter((h) => h !== null).length > 1);
+const speed = computed(() => (track.value ? perSecond(track.value, track.value.speed.map((v) => v * 3.6), null as number | null) : []));
+const grade = computed(() => (track.value ? perSecond(track.value, track.value.grade, null as number | null) : []));
+/** A trace column spread to one-per-second like the FIT series (they share record order). */
+function traceSeries(values: Array<number | null>): Array<number | null> {
+  const t = track.value;
+  if (!t || values.length !== t.seconds.length) return [];
+  return perSecond(t, values, null);
+}
+const gear = computed(() => (trace.value ? traceSeries(trace.value.gear.map((g) => (g > 0 ? g : null))) : []));
+const wheel = computed(() => (trace.value ? traceSeries(trace.value.wheelSpeed.map((v) => v * 3.6)) : []));
+const sent = computed(() => (trace.value ? traceSeries(trace.value.sentGrade) : []));
+const target = computed(() => (trace.value ? traceSeries(trace.value.target) : []));
+const hasTrace = computed(() => gear.value.some((g) => g !== null));
+const hasWheel = computed(() => wheel.value.some((w) => w !== null && w > 0));
+const hasTarget = computed(() => target.value.some((w) => w !== null));
+const span = (xs: Array<number | null>) => {
+  const v = xs.filter((x): x is number => x !== null);
+  return v.length ? `${Math.min(...v)}–${Math.max(...v)}` : '';
+};
 const stats = (xs: Array<number | null>) => {
   const v = xs.filter((x): x is number => x !== null);
   return { avg: v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : 0, max: v.length ? Math.round(Math.max(...v)) : 0 };
@@ -81,6 +104,19 @@ onMounted(async () => {
           :secondary="hasHeart ? { title: 'Heart rate', unit: 'bpm', color: '#e66767', zeroBased: false, values: heart, summary: `avg ${stats(heart).avg} bpm · max ${stats(heart).max} bpm` } : null"
         />
         <p v-if="!hasHeart" class="note">No heart-rate data in this ride.</p>
+        <template v-if="hasTrace">
+          <LineChart title="Gear" unit="" color="#b197fc" :zero-based="false" :values="gear" :summary="`gears ${span(gear)}`" />
+          <LineChart
+            title="Trainer wheel speed" unit="km/h" color="#fcc419" :zero-based="true" :values="hasWheel ? wheel : []" :summary="hasWheel ? `avg ${stats(wheel).avg} km/h` : 'not reported by the trainer'"
+            :secondary="{ title: 'Game speed', unit: 'km/h', color: '#3987e5', zeroBased: true, values: speed, summary: `avg ${stats(speed).avg} km/h` }"
+          />
+          <LineChart
+            title="Gradient sent to the trainer" unit="%" color="#ff922b" :zero-based="false" :values="sent" :summary="`${span(sent.map((v) => (v === null ? null : Math.round(v))))} %`"
+            :secondary="{ title: 'Road gradient', unit: '%', color: '#199e70', zeroBased: false, values: grade, summary: `${span(grade.map((v) => (v === null ? null : Math.round(v))))} %` }"
+          />
+          <LineChart v-if="hasTarget" title="ERG target" unit="W" color="#e66767" :zero-based="true" :values="target" :summary="`${span(target)} W`" />
+        </template>
+        <p v-else class="note">No gear or trainer diagnostics in this ride (recorded before they were logged).</p>
       </div>
     </template>
   </div>

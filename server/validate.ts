@@ -46,7 +46,8 @@ export const MAX_TRACE_BYTES = 256 * 1024;
 export const MAX_BESTS_BATCH = 200;
 export const MAX_WORKOUT_TEXT = 8000;
 export const MAX_WORKOUTS = 100;
-export const MAX_META_BYTES = 4 * 1024;
+/** Room for the per-second diagnostics trace of a long ride. */
+export const MAX_META_BYTES = 256 * 1024;
 export const MIN_FIT_BYTES = 100;
 export const MAX_FIT_BYTES = 2 * 1024 * 1024;
 

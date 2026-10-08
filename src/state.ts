@@ -16,9 +16,11 @@ export interface LiveMetrics {
   power: number; // W
   cadence: number; // rpm
   heartRate: number; // bpm, 0 when unknown
+  /** The trainer's own wheel speed, m/s; 0 when it sends none. */
+  wheelSpeed: number;
 }
 
-export const live: LiveMetrics = { power: 0, cadence: 0, heartRate: 0 };
+export const live: LiveMetrics = { power: 0, cadence: 0, heartRate: 0, wheelSpeed: 0 };
 
 import { defaultRiderLook, sanitizeLook } from './game/rider.ts';
 import type { RiderLook } from './game/rider.ts';

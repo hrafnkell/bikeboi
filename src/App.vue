@@ -14,6 +14,7 @@ import type { RideOutcome } from './ride/outcome.ts';
 import type { SavedRide } from './ride/ride-store.ts';
 import { devices } from './ble/devices.ts';
 import { peakPowers } from './ride/peaks.ts';
+import { encodeTrace } from './ride/trace.ts';
 import AboutScreen from './ui/AboutScreen.vue';
 import HomeScreen from './ui/HomeScreen.vue';
 import RideScreen from './ui/RideScreen.vue';
@@ -62,6 +63,7 @@ function rideEnded(outcome: RideOutcome) {
       laps: outcome.laps.length,
       trainer: devices.info('trainer').name,
       peaks: peakPowers(outcome.finished.ride.samples.map((s) => s.power)),
+      trace: encodeTrace(outcome.finished.ride.samples),
     }).then(() => flushUploads());
   }
 }

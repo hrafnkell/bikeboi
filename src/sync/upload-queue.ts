@@ -3,6 +3,7 @@
 import { reactive } from 'vue';
 import { ApiError, apiForm, isNetworkError } from '../api/client.ts';
 import type { FinishedRide, RideSummary } from '../ride/recorder.ts';
+import type { EncodedTrace } from '../ride/trace.ts';
 
 /** What goes into a ride's meta on the account, beyond the summary. */
 export interface RideExtras {
@@ -13,6 +14,8 @@ export interface RideExtras {
   trainer: string;
   /** Best average power over 5 s, 20 s, 1, 5 and 20 minutes, where the ride was long enough. */
   peaks: Record<string, number>;
+  /** Gear, wheel speed and trainer commands per record (see ride/trace.ts); null for older rides. */
+  trace?: EncodedTrace | null;
 }
 
 export interface QueuedRide {

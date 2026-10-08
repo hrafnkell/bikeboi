@@ -68,7 +68,8 @@ describe('validators', () => {
     expect(status(() => v.rideSummary({ ...summary, laps: -1 }))).toBe(400);
     expect(status(() => v.rideSummary({ ...summary, avgPower: 'lots' }))).toBe(400);
     expect(v.rideMeta(undefined)).toEqual({});
-    expect(status(() => v.rideMeta({ big: 'x'.repeat(5000) }))).toBe(400);
+    expect((v.rideMeta({ big: 'x'.repeat(5000) }).big as string).length).toBe(5000);
+    expect(status(() => v.rideMeta({ big: 'x'.repeat(300 * 1024) }))).toBe(400);
     expect(v.fitBytes(fakeFit()).length).toBe(200);
     expect(status(() => v.fitBytes(new Uint8Array(50)))).toBe(400);
     const notFit = fakeFit();

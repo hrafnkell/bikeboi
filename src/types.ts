@@ -36,6 +36,15 @@ export interface RideSample {
   distance: number; // m, cumulative
   altitude: number; // m
   grade: number; // percent
+  // diagnostics, kept beside the FIT file (which has no fields for them)
+  /** Virtual gear, 1-based. */
+  gear?: number;
+  /** The trainer's own wheel speed, m/s; 0 when it sends none. */
+  wheelSpeed?: number;
+  /** Gradient sent to the trainer, percent. */
+  sentGrade?: number;
+  /** Watts the trainer was told to hold (ERG), when it was. */
+  target?: number;
 }
 
 export interface RideLap {

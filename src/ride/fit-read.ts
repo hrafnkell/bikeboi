@@ -8,6 +8,8 @@ export interface FitTrack {
   /** null where the file holds no reading. */
   heartRate: Array<number | null>;
   altitude: number[];
+  /** Percent. */
+  grade: number[];
   distance: number[];
   speed: number[];
 }
@@ -45,6 +47,7 @@ export async function readFitTrack(fit: Uint8Array): Promise<FitTrack> {
       return typeof hr === 'number' && hr > 0 && hr < 255 ? hr : null;
     }),
     altitude: records.map((r) => num(r.fields.altitude)),
+    grade: records.map((r) => num(r.fields.grade)),
     distance: records.map((r) => num(r.fields.distance)),
     speed: records.map((r) => num(r.fields.speed)),
   };

@@ -14,7 +14,7 @@ interface RideRow {
   circuitName: string;
   filename: string;
   summary: RideSummary;
-  meta: { pacer?: number | null; workout?: string | null; laps?: number };
+  meta: { pacer?: number | null; workout?: string | null; laps?: number; trace?: unknown };
   fitBytes: number;
   createdAt: number;
   intervalsId: string | null;
@@ -148,7 +148,7 @@ onMounted(() => {
             </svg>
           </button>
         </div>
-        <RideDetails v-if="open === ride.id" :ride-id="ride.id" :circuit-id="ride.circuitId" />
+        <RideDetails v-if="open === ride.id" :ride-id="ride.id" :circuit-id="ride.circuitId" :trace="ride.meta?.trace ?? null" />
       </li>
     </ol>
     <div class="row">

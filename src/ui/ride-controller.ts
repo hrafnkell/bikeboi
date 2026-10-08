@@ -499,6 +499,10 @@ export function createRideController(
       distance: sim.distance,
       altitude: sim.altitude,
       grade: sim.grade * 100,
+      gear: gear + 1,
+      wheelSpeed: live.wheelSpeed,
+      sentGrade: trainerMode === 'erg' || Number.isNaN(lastSent) ? undefined : lastSent * 100,
+      target: trainerMode === 'erg' ? lastErg : undefined,
     });
     trace.sample(sim.lapTime, sim.lapDistance);
   }
