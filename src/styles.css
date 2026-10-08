@@ -138,6 +138,12 @@ a { color: var(--accent); }
 .circuit .profile { width: 100%; height: 48px; margin-bottom: 4px; }
 .circuit .profile polygon { fill: #4c956c; }
 .circuit-desc, .circuit-stats { color: var(--muted); font-size: 0.85rem; }
+.circuit-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0; }
+.badge {
+  display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 8px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-size: 0.78rem; white-space: nowrap;
+}
+.badge b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 .circuit-best { font-size: 0.85rem; color: var(--accent); }
 .circuit { position: relative; }
 .circuit-scene {

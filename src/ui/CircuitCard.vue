@@ -36,9 +36,14 @@ const estimate = computed(() => {
   const minutes = Math.round(seconds / 60);
   return `\u2248 ${minutes} min at 75% of FTP`;
 });
-const stats = computed(() => {
+/** Length, climb and steepest gradient, as [value, label] badges. */
+const badges = computed<Array<[string, string]>>(() => {
   const c = props.circuit;
-  return `${fmtKm(c.length, 1)} km · ${Math.round(c.ascent)} m up · max ${(c.maxGrade * 100).toFixed(0)}%`;
+  return [
+    [`${fmtKm(c.length, 1)} km`, 'length'],
+    [`${Math.round(c.ascent)} m`, 'climb'],
+    [`${(c.maxGrade * 100).toFixed(0)}%`, 'max'],
+  ];
 });
 const segments = computed(() => {
   const n = props.circuit.segments.length;
@@ -53,7 +58,9 @@ const segments = computed(() => {
     </svg>
     <strong>{{ circuit.name }}</strong>
     <span class="circuit-desc">{{ circuit.description }}</span>
-    <span class="circuit-stats">{{ stats }}</span>
+    <span class="circuit-badges">
+      <span v-for="[value, label] in badges" :key="label" class="badge"><b>{{ value }}</b> {{ label }}</span>
+    </span>
     <span class="circuit-stats">{{ segments }}<template v-if="estimate"> · {{ estimate }}</template></span>
     <span class="circuit-best">{{ ghost ? `Best lap ${fmtLap(ghost.lapTime)}` : 'No lap yet' }}</span>
     <span class="circuit-scene">{{ findScene(circuit.scene).name }}</span>
