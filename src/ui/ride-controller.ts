@@ -35,6 +35,7 @@ import { bus, live, settings, totalMass } from '../state.ts';
 import { CRR, CW } from '../types.ts';
 
 const OFFSET_STEP = 0.005; // gradient per gear in the offset rule
+const POWER_WINDOW_MS = 3000; // the power card averages this long
 const SIM_PUSH_MS = 500;
 
 export type GapSide = '' | 'ahead' | 'behind';
@@ -148,7 +149,7 @@ export function createRideController(
   let estimate = { at: -1, value: 0 };
   // the stance reacts to a shorter power average than the finish estimate does
   let recentPower = 0;
-  // the power card shows a one-second average; raw trainer readings jump around too much to read
+  // the power card shows a three-second average; raw trainer readings jump around too much to read
   const powerWindow: Array<{ at: number; watts: number }> = [];
   let shownPower = 0;
   const stance = new StanceSelector();
@@ -240,6 +241,8 @@ export function createRideController(
     trace.reset();
     const best = !ghost || lap.time < ghost.lapTime;
     if (best) {
+      // beating a time you already had is worth confetti; a first lap is just a lap
+      if (ghost && counts) renderer?.celebrate();
       ghost = finishedTrace; // chased for the rest of this ride either way
       if (counts) saveGhost(circuit.id, finishedTrace);
     }
@@ -299,6 +302,7 @@ export function createRideController(
         ? `  ★ best by ${(previousBest - time).toFixed(1)} s`
         : `  +${(time - previousBest).toFixed(1)} s`;
     showToast(`${segment.name}  ${fmtLap(time)}${versus}`);
+    if (isBest && previousBest !== null && counts) renderer?.celebrate();
   }
 
   function renderSegment() {
@@ -400,16 +404,17 @@ export function createRideController(
     vm.gearFlag = saturated > 0 ? 'max' : saturated < 0 ? 'min' : '';
   }
 
-  /** Mean of the power readings taken over the last second. */
+  /** Mean of the power readings over the last three seconds, like a head unit's 3 s power. */
   function smoothPower(now: number): number {
     powerWindow.push({ at: now, watts: live.power });
-    while (powerWindow.length > 1 && now - powerWindow[0].at > 1000) powerWindow.shift();
+    while (powerWindow.length > 1 && now - powerWindow[0].at > POWER_WINDOW_MS) powerWindow.shift();
     return powerWindow.reduce((sum, p) => sum + p.watts, 0) / powerWindow.length;
   }
 
   function updateHud() {
     shownPower = smoothPower(performance.now());
-    vm.power = String(Math.round(shownPower));
+    // shown in 5 W steps so the last digit stops flickering; the recording keeps the raw readings
+    vm.power = String(Math.round(shownPower / 5) * 5);
     vm.cadence = String(Math.round(live.cadence));
     vm.heart = live.heartRate > 0 ? String(Math.round(live.heartRate)) : '--';
     vm.powerMax = `max ${peak.power > 0 ? Math.round(peak.power) : '--'}`;

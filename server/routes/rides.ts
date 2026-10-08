@@ -108,6 +108,27 @@ export function ridesRoutes(ctx: AuthContext) {
       }
     },
 
+    /** Totals for the last 7 days, the 7 before, and all time. */
+    stats(req: Request): Response {
+      const user = requireUser(ctx, req);
+      const now = Date.now();
+      const week = 7 * 24 * 3600 * 1000;
+      const totals = (from: number, to: number) => ctx.db.query(`
+        SELECT COUNT(*) AS rides,
+          COALESCE(SUM(json_extract(summary, '$.durationS')), 0) AS durationS,
+          COALESCE(SUM(json_extract(summary, '$.distanceM')), 0) AS distanceM,
+          COALESCE(SUM(json_extract(summary, '$.ascentM')), 0) AS ascentM,
+          COALESCE(SUM(json_extract(summary, '$.calories')), 0) AS calories,
+          COALESCE(SUM(json_extract(summary, '$.durationS') * json_extract(summary, '$.avgPower')), 0) AS work
+        FROM rides WHERE user_id = $u AND started_at >= $from AND started_at < $to
+      `).get({ u: user.id, from, to });
+      return json({
+        week: totals(now - week, now + week),
+        previous: totals(now - 2 * week, now - week),
+        total: totals(0, now + week),
+      });
+    },
+
     list(req: Request): Response {
       const user = requireUser(ctx, req);
       const url = new URL(req.url);

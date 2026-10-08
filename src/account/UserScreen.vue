@@ -5,6 +5,7 @@ import RiderEditor from '../ui/RiderEditor.vue';
 import SetupFields from '../ui/SetupFields.vue';
 import AccountCard from './AccountCard.vue';
 import IntervalsCard from './IntervalsCard.vue';
+import StatsCard from './StatsCard.vue';
 
 const emit = defineEmits<{ back: [] }>();
 onMounted(() => window.scrollTo(0, 0));
@@ -14,6 +15,10 @@ onMounted(() => window.scrollTo(0, 0));
   <main class="screen user">
     <div class="row"><button class="btn" @click="emit('back')">&larr; Back to start</button></div>
     <h1>Your account</h1>
+    <section>
+      <h2>Your week</h2>
+      <StatsCard />
+    </section>
     <section>
       <h2>Account</h2>
       <AccountCard @signed-out="emit('back')" />

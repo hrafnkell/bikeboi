@@ -82,4 +82,18 @@ describe('rides', () => {
     expect((await other.json('DELETE', `/api/rides/${mine.id}`)).status).toBe(404);
     expect((await other.json('GET', '/api/rides')).body.rides).toEqual([]);
   });
+
+  test('stats total the last week, the week before and all time', async () => {
+    const d = app.client();
+    expect((await d.json('POST', '/api/auth/register', { email: uniqueEmail(), password: 'password1' })).status).toBe(201);
+    const day = 24 * 3600 * 1000;
+    const now = Date.now();
+    for (const t of [now - 1 * day, now - 2 * day, now - 9 * day, now - 30 * day]) expect((await upload(d, t)).status).toBe(201);
+    const r = await d.json('GET', '/api/rides/stats');
+    expect(r.status).toBe(200);
+    expect(r.body.week).toMatchObject({ rides: 2, durationS: 1200, distanceM: 10000, ascentM: 100, calories: 240, work: 240000 });
+    expect(r.body.previous).toMatchObject({ rides: 1, durationS: 600 });
+    expect(r.body.total).toMatchObject({ rides: 4, distanceM: 20000 });
+    expect((await app.client().json('GET', '/api/rides/stats')).status).toBe(401);
+  });
 });

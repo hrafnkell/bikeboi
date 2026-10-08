@@ -41,6 +41,21 @@ const SPRITE_SCALE = 2.2;
 const TREE_SLOT = 14; // metres between possible tree positions
 const MARKER_EVERY = 500; // metres between distance signs
 const CUT_SECONDS = 0.6; // blackout after the road jumps at an open route's lap line
+const CONFETTI_COLORS = ['#ff6b6b', '#ffd43b', '#51cf66', '#4dabf7', '#b197fc', '#ff922b', '#f783ac'];
+
+interface Confetti {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  spin: number;
+  angle: number;
+  w: number;
+  h: number;
+  color: string;
+  /** Seconds left. */
+  life: number;
+}
 
 export const segmentColors = { climb: '#ffa94d', descent: '#74c0fc', sprint: '#b197fc' } as const;
 const segmentGlyph = { climb: '\u25B2', descent: '\u25BC', sprint: '\u26A1' } as const;
@@ -75,6 +90,7 @@ export class Renderer {
   strip = true;
   /** Seconds left of the blackout after a jump in the road. */
   private blackout = 0;
+  private confetti: Confetti[] = [];
   private palette: Palette;
   private style: SceneStyle;
   private clock = 0;
@@ -164,6 +180,7 @@ export class Renderer {
     this.drawRider(cam, scene.distance, sprite, this.crankAngle, this.wheelAngle, null);
     if (this.style.rain) this.drawRain(scene.speed);
     if (this.strip) this.drawProfile(scene);
+    if (this.confetti.length) this.drawConfetti(scene.dt);
     if (this.blackout > 0) {
       this.blackout = Math.max(0, this.blackout - scene.dt);
       ctx.fillStyle = `rgba(0,0,0,${Math.min(1, this.blackout / CUT_SECONDS * 1.6).toFixed(3)})`;
@@ -713,6 +730,49 @@ export class Renderer {
     };
     for (const other of scene.others) dot(other.distance, this.colorOf(other), 3.5);
     dot(scene.distance, '#ffffff', 4.5);
+  }
+
+  /** A burst of confetti from the top of the stage, for a new best. */
+  celebrate(): void {
+    const { width, height } = this.viewport;
+    for (let i = 0; i < 140; i++) {
+      this.confetti.push({
+        x: width * (0.2 + Math.random() * 0.6),
+        y: -10 - Math.random() * height * 0.2,
+        vx: (Math.random() - 0.5) * width * 0.25,
+        vy: height * (0.15 + Math.random() * 0.25),
+        spin: (Math.random() - 0.5) * 12,
+        angle: Math.random() * Math.PI,
+        w: 5 + Math.random() * 5,
+        h: 3 + Math.random() * 4,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        life: 2.2 + Math.random() * 1.2,
+      });
+    }
+  }
+
+  private drawConfetti(dt: number): void {
+    const { ctx, viewport } = this;
+    const g = viewport.height * 0.35;
+    const kept: Confetti[] = [];
+    for (const c of this.confetti) {
+      c.life -= dt;
+      if (c.life <= 0 || c.y > viewport.height + 20) continue;
+      c.vy += g * dt;
+      c.vx *= 1 - Math.min(1, dt * 1.5);
+      c.x += c.vx * dt + Math.sin(c.angle * 3) * 20 * dt;
+      c.y += c.vy * dt;
+      c.angle += c.spin * dt;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, c.life);
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.angle);
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h * Math.abs(Math.cos(c.angle * 2)) + 1);
+      ctx.restore();
+      kept.push(c);
+    }
+    this.confetti = kept;
   }
 
   /** Black out the stage briefly: the road has just jumped (an open route's lap line). */

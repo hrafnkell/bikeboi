@@ -86,6 +86,16 @@ const heartChart = computed(() => {
 });
 const heartSeries = computed(() => (heartChart.value ? { ...heartChart.value, title: 'Heart rate', unit: 'bpm', color: '#e66767', zeroBased: false } : null));
 
+/** A word for the top of the page; a new best lap or segment earns a louder one. */
+const praise = computed(() => {
+  const f = finished.value;
+  if (!f) return '';
+  if (props.outcome.efforts.some((e) => e.isBest && e.previousBest !== null)) return 'New best! Great ride.';
+  if (f.summary.durationS >= 3600) return 'An hour in the saddle. Well done.';
+  if (f.summary.durationS >= 1200) return 'Good job!';
+  return 'Nice one.';
+});
+
 const bestLap = computed(() =>
   props.outcome.laps.reduce<number | null>((b, l) => (b === null || l.time < b ? l.time : b), null),
 );
@@ -106,6 +116,14 @@ function download() {
   <main class="screen summary">
     <h1>{{ outcome.circuit.name }}</h1>
     <p v-if="outcome.error" class="note">{{ outcome.error }}</p>
+    <p v-if="finished" class="summary-status" :class="{ warn: uploads.last === 'failed' && !outcome.simulated && account.status === 'in' }">
+      <strong>{{ praise }}</strong>
+      <span v-if="outcome.simulated">Simulated ride: not counted and not saved to your account.</span>
+      <span v-else-if="account.status !== 'in'">Sign in to keep your rides and send them to intervals.icu.</span>
+      <span v-else>
+        {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading to your account…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded to your account when you’re online' }}<template v-if="uploads.last === 'saved' && uploads.pending === 0 && uploads.intervals">{{ uploads.intervals === 'sent' ? ' and sent to intervals.icu' : '; the intervals.icu upload failed, retry from My rides' }}</template>.
+      </span>
+    </p>
     <div v-if="finished" class="stats">
       <div v-for="[label, value] in stats" :key="label" class="stat">
         <span class="stat-value">{{ value }}</span>
@@ -149,11 +167,6 @@ function download() {
     <p v-if="finished" class="note">Import the file into Strava, Garmin Connect or intervals.icu.</p>
     <div class="row">
       <button v-if="finished" class="btn btn-primary" @click="download">Download FIT file</button>
-      <span v-if="finished && outcome.simulated" class="upload-status">Simulated ride: not counted, not saved to your account</span>
-      <span v-else-if="finished && account.status !== 'in'" class="upload-status">Sign in to keep your rides and send them to intervals.icu</span>
-      <span v-else-if="finished" class="upload-status">
-        {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded when you\u2019re online' }}<template v-if="uploads.last === 'saved' && uploads.pending === 0 && uploads.intervals"> · {{ uploads.intervals === 'sent' ? 'sent to intervals.icu' : 'intervals.icu upload failed; retry from My rides' }}</template>
-      </span>
       <button class="btn" @click="emit('done')">Back to start</button>
     </div>
   </main>

@@ -14,13 +14,26 @@ const emit = defineEmits<{ end: [outcome: RideOutcome] }>();
 const ctrl = createRideController(props.circuit, props.resume, (outcome) => emit('end', outcome));
 const vm = ctrl.vm;
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas');
+const root = useTemplateRef<HTMLElement>('root');
+const lapbox = useTemplateRef<HTMLElement>('lapbox');
 
-onMounted(() => ctrl.attach(canvas.value!));
-onBeforeUnmount(() => ctrl.dispose());
+// the segment panel sits under the lap box, whose height depends on pacer and workout rows
+let observer: ResizeObserver | null = null;
+onMounted(() => {
+  ctrl.attach(canvas.value!);
+  if (typeof ResizeObserver !== 'undefined' && lapbox.value && root.value) {
+    observer = new ResizeObserver(() => root.value?.style.setProperty('--lap-h', `${lapbox.value?.offsetHeight ?? 0}px`));
+    observer.observe(lapbox.value);
+  }
+});
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  ctrl.dispose();
+});
 </script>
 
 <template>
-  <div class="ride" :class="{ 'is-sim': ctrl.simulated, 'has-pacer': ctrl.hasPacer, 'has-workout': ctrl.hasWorkout }">
+  <div ref="root" class="ride" :class="{ 'is-sim': ctrl.simulated, 'has-pacer': ctrl.hasPacer, 'has-workout': ctrl.hasWorkout }">
     <div class="stage">
       <canvas ref="canvas" class="stage-canvas"></canvas>
       <div class="banner" :class="{ gone: vm.bannerGone }">{{ ctrl.banner }}</div>
@@ -41,7 +54,7 @@ onBeforeUnmount(() => ctrl.dispose());
       <MetricCard label="Climbed" unit="m" :value="vm.climb" />
     </div>
 
-    <div class="lapbox">
+    <div ref="lapbox" class="lapbox">
       <div class="lap-row">
         <span class="lap-no">{{ vm.lapNo }}</span>
         <span class="lap-time">{{ vm.lapTime }}</span>
@@ -49,7 +62,7 @@ onBeforeUnmount(() => ctrl.dispose());
       </div>
       <div class="lap-row lap-row-sub">
         <span class="lap-best">{{ vm.lapBest }}</span>
-        <span class="lap-elapsed">{{ vm.elapsed }}</span>
+        <span v-if="vm.elapsed" class="lap-elapsed"><b>{{ vm.elapsed }}</b> ride</span>
       </div>
       <div v-if="ctrl.hasWorkout" class="lap-row lap-row-sub pacer-row">
         <span class="pacer-label">{{ vm.workStep }}</span>
