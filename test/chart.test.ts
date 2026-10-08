@@ -117,6 +117,6 @@ describe('two series on one chart', () => {
     const lastX = b.points[b.points.length - 1].x;
     expect(lastX).toBeLessThan(a.plotX + a.plotWidth * 0.7);
     expect(lastX).toBeGreaterThan(a.plotX + a.plotWidth * 0.6);
-    expect(layoutLine(power, 600, true).plotWidth).toBe(600 - CHART_MARGIN.left - CHART_MARGIN.right);
+    expect(layoutLine(power, 600, true)!.plotWidth).toBe(600 - CHART_MARGIN.left - CHART_MARGIN.right);
   });
 });
