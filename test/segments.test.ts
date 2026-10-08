@@ -5,7 +5,7 @@ import type { GhostTrace } from '../src/ride/ghost.ts';
 import { SegmentTracker, describeSegment } from '../src/ride/segments.ts';
 import type { BestStore, SegmentEffort } from '../src/ride/segments.ts';
 
-const def = { id: 't', name: 't', description: '', seed: 1, scene: 'day' as const };
+const def = { id: 't', name: 't', description: '', seed: 1, group: 'short' as const, scene: 'day' as const };
 
 function memoryStore(): BestStore & { saved: Map<string, GhostTrace> } {
   const saved = new Map<string, GhostTrace>();

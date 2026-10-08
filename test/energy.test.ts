@@ -18,7 +18,7 @@ describe('energy', () => {
 
   test('the sim accumulates work only while riding', () => {
     const flat = buildCircuit({
-      id: 'f', name: 'f', description: '', seed: 1, scene: 'day', length: 500, points: [[0, 0], [250, 0]],
+      id: 'f', name: 'f', description: '', seed: 1, group: 'short', scene: 'day', length: 500, points: [[0, 0], [250, 0]],
     });
     const sim = new RideSim(flat, 84);
     for (let i = 0; i < 50; i++) sim.step(0);

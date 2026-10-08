@@ -10,7 +10,7 @@ trainer it runs with simulated power.
 <p align="center">
   <img src="img/preview.png" alt="Riding in the Tron scene on a phone, with power, speed, gear and shift buttons below the game" width="300">
   &nbsp;
-  <img src="img/connect.png" alt="Home screen with device connection and the six circuits" width="300">
+  <img src="img/connect.png" alt="Home screen with device connection and the circuits" width="300">
 </p>
 
 ## Screenshots
@@ -81,7 +81,7 @@ The app has an About page (`#about`, `src/ui/about.ts`) built from the screensho
 
 ## Circuits and scenes
 
-Six circuits from 2 to 20 km (`src/ride/circuits/index.ts`), each with a default scene.
+Nine circuits from 2 to 20 km (`src/ride/circuits/index.ts`), grouped as short, hilly and long, each with a default scene.
 The scene can be overridden on the home screen: Day, Sunset, Alpine, Rain, Midnight, Tron
 (`src/game/scenes.ts`).
 

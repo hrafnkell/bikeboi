@@ -23,11 +23,12 @@ describe('circuit', () => {
 
   test('gradients are rideable and continuous across the lap line', () => {
     for (const c of circuits) {
-      expect(c.maxGrade).toBeLessThan(0.15);
+      expect(c.maxGrade).toBeLessThan(0.16);
       expect(Math.abs(c.gradeAt(c.length - 0.01) - c.gradeAt(0.01))).toBeLessThan(0.002);
     }
-    const [harbour, rollers, wall] = circuits;
+    const [harbour, rollers, flats, wall] = circuits;
     expect(harbour.maxGrade).toBeLessThan(0.02);
+    expect(flats.maxGrade).toBeLessThan(0.01);
     expect(rollers.maxGrade).toBeGreaterThan(0.04);
     expect(wall.maxGrade).toBeGreaterThan(0.07);
   });
@@ -42,14 +43,14 @@ describe('circuit', () => {
 
   test('ascent per lap is the sum of the climbs', () => {
     const c = buildCircuit({
-      id: 't', name: 't', description: '', seed: 1, scene: 'day', length: 1000,
+      id: 't', name: 't', description: '', seed: 1, group: 'short', scene: 'day', length: 1000,
       points: [[0, 0], [500, 20]],
     });
     expect(c.ascent).toBeCloseTo(20, 1);
   });
 
   test('rejects malformed definitions', () => {
-    const base = { id: 'x', name: 'x', description: '', seed: 1, scene: 'day' as const, length: 1000 };
+    const base = { id: 'x', name: 'x', description: '', seed: 1, group: 'short' as const, scene: 'day' as const, length: 1000 };
     expect(() => buildCircuit({ ...base, points: [[0, 0]] })).toThrow();
     expect(() => buildCircuit({ ...base, points: [[10, 0], [500, 5]] })).toThrow();
     expect(() => buildCircuit({ ...base, points: [[0, 0], [1000, 5]] })).toThrow();

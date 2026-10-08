@@ -4,11 +4,11 @@ import { RideSim, STEP, projectTime } from '../src/ride/sim.ts';
 import type { LapResult } from '../src/ride/sim.ts';
 
 const flat = buildCircuit({
-  id: 'flat', name: 'flat', description: '', seed: 1, scene: 'day', length: 500,
+  id: 'flat', name: 'flat', description: '', seed: 1, group: 'short', scene: 'day', length: 500,
   points: [[0, 10], [250, 10]],
 });
 const hill = buildCircuit({
-  id: 'hill', name: 'hill', description: '', seed: 1, scene: 'day', length: 4000,
+  id: 'hill', name: 'hill', description: '', seed: 1, group: 'short', scene: 'day', length: 4000,
   points: [[0, 0], [2000, 120]],
 });
 

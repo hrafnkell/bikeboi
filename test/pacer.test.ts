@@ -4,7 +4,7 @@ import { Pacer, Track } from '../src/ride/pacer.ts';
 import { RideSim, STEP } from '../src/ride/sim.ts';
 
 const flat = buildCircuit({
-  id: 'flat', name: 'flat', description: '', seed: 1, scene: 'day', length: 2000, points: [[0, 10], [1000, 10]],
+  id: 'flat', name: 'flat', description: '', seed: 1, group: 'short', scene: 'day', length: 2000, points: [[0, 10], [1000, 10]],
 });
 
 /** Ride both for some seconds: the rider at one power, the pacemaker stepping whenever the rider's clock runs. */

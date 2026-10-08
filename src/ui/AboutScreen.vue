@@ -28,7 +28,7 @@ onMounted(() => window.scrollTo(0, 0));
         <figcaption>A ride on a phone, in the Tron scene.</figcaption>
       </figure>
       <figure class="shot">
-        <img :src="connectShot" alt="The start screen with device connection and the six circuits" loading="lazy" />
+        <img :src="connectShot" alt="The start screen with device connection and the circuits" loading="lazy" />
         <figcaption>The start screen: devices and circuits.</figcaption>
       </figure>
     </div>

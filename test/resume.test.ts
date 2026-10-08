@@ -9,7 +9,7 @@ import { RideSim, STEP } from '../src/ride/sim.ts';
 import type { RideSample } from '../src/types.ts';
 
 const circuit = buildCircuit({
-  id: 'loop', name: 'Loop', description: '', seed: 1, scene: 'day', length: 1000,
+  id: 'loop', name: 'Loop', description: '', seed: 1, group: 'short', scene: 'day', length: 1000,
   points: [[0, 0], [250, 20], [500, 0]],
 });
 

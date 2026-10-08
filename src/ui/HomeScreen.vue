@@ -4,7 +4,7 @@
 import { computed } from 'vue';
 import { sceneList } from '../game/scenes.ts';
 import type { Circuit } from '../ride/circuit.ts';
-import { circuits, findCircuit } from '../ride/circuits/index.ts';
+import { circuitGroups, circuits, findCircuit } from '../ride/circuits/index.ts';
 import type { SavedRide } from '../ride/ride-store.ts';
 import { saveSettings } from '../state.ts';
 import CircuitCard from './CircuitCard.vue';
@@ -79,14 +79,17 @@ const welcome = shouldWelcome();
     <div class="group">
       <section>
         <h2>Circuit</h2>
-        <div class="circuit-list">
-          <CircuitCard
-            v-for="c in circuits"
-            :key="c.id"
-            :circuit="c"
-            :selected="c.id === selected.id"
-            @select="select(c)"
-          />
+        <div v-for="g in circuitGroups" :key="g.id" class="circuit-group">
+          <h3>{{ g.name }} <span class="note">{{ g.blurb }}</span></h3>
+          <div class="circuit-list">
+            <CircuitCard
+              v-for="c in g.circuits"
+              :key="c.id"
+              :circuit="c"
+              :selected="c.id === selected.id"
+              @select="select(c)"
+            />
+          </div>
         </div>
       </section>
       <section>

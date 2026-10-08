@@ -1,9 +1,10 @@
-import { buildCircuit } from '../circuit.ts';
+import { CIRCUIT_GROUPS, buildCircuit } from '../circuit.ts';
 import type { Circuit, CircuitDef } from '../circuit.ts';
 
 const defs: CircuitDef[] = [
   {
     id: 'harbour',
+    group: 'short',
     name: 'Harbour Crit',
     description: 'Short and nearly flat. Good for sprints and warm-ups.',
     seed: 11,
@@ -20,6 +21,7 @@ const defs: CircuitDef[] = [
   },
   {
     id: 'rollers',
+    group: 'short',
     name: 'Rolling Hills',
     description: 'Constant ups and downs with one longer drag.',
     seed: 23,
@@ -42,7 +44,29 @@ const defs: CircuitDef[] = [
     ],
   },
   {
+    id: 'flats',
+    group: 'short',
+    name: 'The Flats',
+    description: 'Three flat kilometres with three sprints. No hills to hide behind.',
+    seed: 29,
+    scene: 'day',
+    sprints: [
+      { name: 'Start Straight', start: 300, length: 250 },
+      { name: 'Back Straight', start: 1550, length: 300 },
+      { name: 'Finish Sprint', start: 2600, length: 350 },
+    ],
+    length: 3000,
+    points: [
+      [0, 20],
+      [700, 21.5],
+      [1500, 20],
+      [2300, 21],
+      [2800, 20.5],
+    ],
+  },
+  {
     id: 'wall',
+    group: 'hilly',
     name: 'The Wall',
     description: 'One proper climb, one fast descent.',
     seed: 37,
@@ -61,7 +85,56 @@ const defs: CircuitDef[] = [
     ],
   },
   {
+    id: 'doomsday',
+    group: 'hilly',
+    name: 'Doomsday Hill',
+    description: 'Nearly two kilometres up, most of it at fourteen percent. Then it lets you go.',
+    seed: 41,
+    scene: 'midnight',
+    segmentNames: { climbs: ['Doomsday'], descents: ['The Abyss'] },
+    length: 4400,
+    points: [
+      [0, 50],
+      [500, 52],
+      [800, 86],
+      [1200, 142],
+      [1600, 198],
+      [2000, 250],
+      [2300, 270],
+      [2500, 272],
+      [3300, 180],
+      [4100, 70],
+    ],
+  },
+  {
+    id: 'staircase',
+    group: 'hilly',
+    name: 'The Staircase',
+    description: 'Five ramps at eight percent with a breather after each, then a long way down.',
+    seed: 47,
+    scene: 'sunset',
+    segmentNames: { climbs: ['The Staircase'], descents: ['Fire Escape'] },
+    length: 6000,
+    points: [
+      [0, 80],
+      [400, 80],
+      [800, 112],
+      [950, 113.5],
+      [1350, 145.5],
+      [1500, 147],
+      [1900, 179],
+      [2050, 180.5],
+      [2450, 212.5],
+      [2600, 214],
+      [3000, 246],
+      [3150, 247.5],
+      [4400, 150],
+      [5650, 82],
+    ],
+  },
+  {
     id: 'coast',
+    group: 'long',
     name: 'Coast Road',
     description: 'Ten rolling kilometres with nothing steep.',
     seed: 53,
@@ -89,6 +162,7 @@ const defs: CircuitDef[] = [
   },
   {
     id: 'valley',
+    group: 'long',
     name: 'Valley Loop',
     description: 'A long steady drag up the valley, then a rolling run home.',
     seed: 71,
@@ -116,6 +190,7 @@ const defs: CircuitDef[] = [
   },
   {
     id: 'granfondo',
+    group: 'long',
     name: 'Gran Fondo',
     description: 'Twenty kilometres over two big climbs.',
     seed: 89,
@@ -146,6 +221,9 @@ const defs: CircuitDef[] = [
 ];
 
 export const circuits: Circuit[] = defs.map(buildCircuit);
+
+/** Circuits under each heading, in listing order. */
+export const circuitGroups = CIRCUIT_GROUPS.map((g) => ({ ...g, circuits: circuits.filter((c) => c.group === g.id) }));
 
 export function findCircuit(id: string): Circuit {
   return circuits.find((c) => c.id === id) ?? circuits[0];

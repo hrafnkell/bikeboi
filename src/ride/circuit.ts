@@ -4,6 +4,14 @@ import type { SceneId } from '../game/scenes.ts';
 import { detectSegments, sprintSegments } from './segments.ts';
 import type { Segment, SegmentNames, SprintDef } from './segments.ts';
 
+export type CircuitGroup = 'short' | 'hilly' | 'long';
+
+export const CIRCUIT_GROUPS: Array<{ id: CircuitGroup; name: string; blurb: string }> = [
+  { id: 'short', name: 'Short', blurb: 'Flat or rolling laps for sprints, warm-ups and quick sessions.' },
+  { id: 'hilly', name: 'Hilly', blurb: 'One big climb each, and a way back down.' },
+  { id: 'long', name: 'Long', blurb: 'Ten kilometres and up.' },
+];
+
 export interface CircuitDef {
   id: string;
   name: string;
@@ -12,6 +20,8 @@ export interface CircuitDef {
   seed: number;
   /** Scene used unless the rider picks another. */
   scene: SceneId;
+  /** Which heading the circuit is listed under. */
+  group: CircuitGroup;
   /** Lap length in metres. */
   length: number;
   /** Control points [distance m, altitude m]; first at distance 0, ascending, all < length. */

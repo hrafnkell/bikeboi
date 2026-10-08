@@ -127,8 +127,10 @@ export class Renderer {
     this.posture = blendPosture(this.posture, postures[scene.stance ?? 'normal'], 1 - Math.exp(-scene.dt * 5));
 
     this.drawSky(cam);
-    this.drawRange(cam, 0.03, 0.34, 0.2, 0.012, this.palette.far, circuit.seed + 1);
-    this.drawRange(cam, 0.1, 0.5, 0.16, 0.03, this.palette.mid, circuit.seed + 2);
+    // the ridges travel with the road, slower the further away; they used to crawl at 3 and
+    // 10 % while bobbing with the rider's altitude, which read as a lava lamp
+    this.drawRange(cam, 0.08, 0.34, 0.2, 0.012, this.palette.far, circuit.seed + 1);
+    this.drawRange(cam, 0.25, 0.5, 0.16, 0.03, this.palette.mid, circuit.seed + 2);
     this.drawTrees(cam, sprite);
     this.drawGround(cam);
     this.drawMarkers(cam, sprite);
@@ -233,11 +235,9 @@ export class Renderer {
     cam: Camera, parallax: number, base: number, amplitude: number, frequency: number,
     color: string, seed: number,
   ): void {
-    const { ctx, viewport, circuit } = this;
+    const { ctx, viewport } = this;
     const { width, height } = viewport;
     const offset = cam.distance * parallax * cam.pxPerM;
-    const range = Math.max(1, circuit.maxAltitude - circuit.minAltitude);
-    const lift = ((cam.altitude - circuit.minAltitude) / range) * height * 0.06 * (parallax * 10);
     const step = Math.max(6, width / 90);
     const ridge = new Path2D();
     ctx.fillStyle = color;
@@ -248,7 +248,7 @@ export class Renderer {
       const n = noise(u, seed) * 0.65 + noise(u * 2.7, seed + 7) * 0.35;
       // neon ridges are angular: snap the noise to steps
       const v = this.style.neon ? Math.round(n * 7) / 7 : n;
-      const y = height * (base + (1 - v) * amplitude) + lift;
+      const y = height * (base + (1 - v) * amplitude);
       ctx.lineTo(x, y);
       ridge.lineTo(x, y);
     }
