@@ -2,16 +2,21 @@
 
 import { G0 } from '../types.ts';
 
-/** Sequential virtual gear ratios, easiest first. */
+/**
+ * Sequential virtual gear ratios, easiest first: Zwift's 24 (0.75 to 5.49) with three
+ * lower ones below, since on a trainer the lightest gear a real cassette gives is not
+ * light enough for a long 7 % in the saddle.
+ */
 export const GEAR_RATIOS: readonly number[] = [
+  0.55, 0.62, 0.68,
   0.75, 0.87, 0.99, 1.11, 1.23, 1.38, 1.53, 1.68, 1.86, 2.04, 2.22, 2.4, 2.61, 2.82, 3.03, 3.24,
   3.49, 3.74, 3.99, 4.24, 4.54, 4.84, 5.14, 5.49,
 ];
 
 export const GEAR_COUNT = GEAR_RATIOS.length;
 
-/** The gear in which the trainer is told the true gradient. */
-export const REFERENCE_GEAR = 11;
+/** The gear in which the trainer is told the true gradient (ratio 2.40). */
+export const REFERENCE_GEAR = 14;
 
 export const WHEEL_CIRCUMFERENCE = 2.105; // m
 

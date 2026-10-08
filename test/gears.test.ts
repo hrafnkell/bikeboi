@@ -23,7 +23,8 @@ function roadForce(G: number, v: number, m = base.mass): number {
 
 describe('gears', () => {
   test('table is ascending and the reference gear is neutral', () => {
-    expect(GEAR_COUNT).toBe(24);
+    expect(GEAR_COUNT).toBe(27);
+    expect(GEAR_RATIOS[REFERENCE_GEAR]).toBe(2.4);
     for (let i = 1; i < GEAR_COUNT; i++) expect(GEAR_RATIOS[i]).toBeGreaterThan(GEAR_RATIOS[i - 1]);
     expect(gearFactor(REFERENCE_GEAR)).toBe(1);
     expect(clampGear(-3)).toBe(0);
@@ -113,8 +114,8 @@ describe('gears', () => {
 
   test('cadence and trainer speed are inverses in the reference gear', () => {
     expect(cadenceFor(0, 5)).toBe(0);
-    expect(cadenceFor(8, 11)).toBeCloseTo((8 / (2.4 * 2.105)) * 60, 6);
-    expect(cadenceFor(8, 12)).toBeLessThan(cadenceFor(8, 11));
+    expect(cadenceFor(8, REFERENCE_GEAR)).toBeCloseTo((8 / (2.4 * 2.105)) * 60, 6);
+    expect(cadenceFor(8, REFERENCE_GEAR + 1)).toBeLessThan(cadenceFor(8, REFERENCE_GEAR));
     expect(trainerSpeedFor(-5)).toBe(0);
     expect(cadenceFor(trainerSpeedFor(80), REFERENCE_GEAR)).toBeCloseTo(80, 10);
     expect(trainerSpeedFor(60)).toBeCloseTo(GEAR_RATIOS[REFERENCE_GEAR] * WHEEL_CIRCUMFERENCE, 10);
