@@ -4,7 +4,7 @@
 
 import { markRaw, shallowReactive } from 'vue';
 import { devices } from '../ble/devices.ts';
-import { DEFAULT_SIM_LIMITS } from '../ble/sim-sender.ts';
+import { DEFAULT_SIM_LIMITS, MAX_CW } from '../ble/sim-sender.ts';
 import { Renderer, gradeColor, segmentColors } from '../game/renderer.ts';
 import type { OtherRider } from '../game/renderer.ts';
 import { clamp, fmtClock, fmtKm, fmtLap } from '../format.ts';
@@ -13,7 +13,7 @@ import type { Circuit } from '../ride/circuit.ts';
 import { devCountSimulated, devTimeScale } from '../dev.ts';
 import { kcalFromJoules } from '../ride/energy.ts';
 import {
-  GEAR_COUNT, REFERENCE_GEAR, cadenceFor, clampGear, gearFactor, gearedSimGrade, offsetSimGrade,
+  GEAR_COUNT, REFERENCE_GEAR, cadenceFor, clampGear, gearFactor, gearedSimGrade, offsetSimGrade, trainerSpeedFor,
 } from '../ride/gears.ts';
 import { TraceRecorder, gapSeconds, ghostLapDistance, loadGhost, saveGhost } from '../ride/ghost.ts';
 import type { RideOutcome } from '../ride/outcome.ts';
@@ -327,17 +327,17 @@ export function createRideController(
     const target = settings.gearMode === 'offset'
       ? offsetSimGrade({
         courseGrade: sim.grade, gearIndex: gear, neutralIndex: REFERENCE_GEAR, stepGrade: OFFSET_STEP,
-        difficulty: settings.difficulty, ...limits,
+        crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
       })
       : gearedSimGrade({
-        courseGrade: sim.grade, k: gearFactor(gear), gameSpeed: sim.speed, mass: totalMass(),
-        crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
+        courseGrade: sim.grade, k: gearFactor(gear), trainerSpeed: trainerSpeedFor(live.cadence), mass: totalMass(),
+        crr: CRR, cw: CW, maxCw: MAX_CW, difficulty: settings.difficulty, ...limits,
       });
     saturated = target.saturated;
     const now = performance.now();
     const due = now - lastPush >= SIM_PUSH_MS && Math.abs(target.grade - lastSent) >= 0.001;
     if (force || due || now - lastPush >= 3000 || Number.isNaN(lastSent)) {
-      devices.setSim({ grade: target.grade, crr: CRR, cw: CW });
+      devices.setSim({ grade: target.grade, crr: target.crr, cw: target.cw });
       lastSent = target.grade;
       lastPush = now;
     }

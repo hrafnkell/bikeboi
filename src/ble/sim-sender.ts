@@ -16,7 +16,8 @@ export const DEFAULT_SIM_LIMITS: SimLimits = { minGrade: -0.1, maxGrade: 0.2 };
 
 // uint8 fields on the wire: crr at 0.0001, wind resistance at 0.01 kg/m
 const MAX_CRR = 0.0254;
-const MAX_CW = 1.86;
+/** Largest wind resistance coefficient the trainer services encode, kg/m. */
+export const MAX_CW = 1.86;
 
 function clamp(value: number, min: number, max: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;

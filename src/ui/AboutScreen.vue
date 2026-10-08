@@ -78,7 +78,7 @@ onMounted(() => window.scrollTo(0, 0));
       <ul>
         <li>Your speed comes from your power, the gradient and your weight, the same way it would outside. More watts or less weight means faster.</li>
         <li>The trainer gets harder on climbs and easier on descents. Hill difficulty scales how much of the gradient you feel; it never changes your speed.</li>
-        <li>Gears change how hard the pedals feel at a given cadence, not how fast you go for a given power. There are 24, and every ride starts in gear 12.</li>
+        <li>Gears change how hard the pedals feel at a given cadence, not how fast you go for a given power. There are 24, and every ride starts in gear 12. Gear 12 matches a real ratio of about 2.4 (50/21, 36/15 or 34/14), so put your bike in a gear like that and leave it there: the virtual gears are measured from it.</li>
           <li>The clock runs only while you are moving. Stop pedalling and roll to a halt, and the ride waits for you.</li>
         <li>Each time you cross the line a lap is timed. Your best lap on each circuit is kept in this browser and rides beside you as a translucent ghost, with the gap shown in seconds.</li>
         <li>Climbs, descents and sprints are timed as segments. As you approach one, a panel shows what is coming; on it, you see how much is left, an estimated finishing time and how you compare with your best. Your best on each segment is kept in this browser.</li>

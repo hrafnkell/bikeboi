@@ -36,10 +36,22 @@ export interface SimGrade {
   saturated: -1 | 0 | 1;
 }
 
+/** Everything the trainer is told in simulation mode. */
+export interface SimControl extends SimGrade {
+  crr: number;
+  /** Wind resistance coefficient, kg/m. */
+  cw: number;
+}
+
 function clampGrade(grade: number, minGrade: number, maxGrade: number): SimGrade {
   if (grade < minGrade) return { grade: minGrade, saturated: -1 };
   if (grade > maxGrade) return { grade: maxGrade, saturated: 1 };
   return { grade, saturated: 0 };
+}
+
+/** Wheel speed the trainer sees at this cadence, assuming the bike is in the reference gear. */
+export function trainerSpeedFor(cadence: number, reference = REFERENCE_GEAR): number {
+  return (Math.max(0, cadence) / 60) * GEAR_RATIOS[clampGear(reference)] * WHEEL_CIRCUMFERENCE;
 }
 
 export interface GearedInput {
@@ -47,13 +59,15 @@ export interface GearedInput {
   courseGrade: number;
   /** Selected ratio / reference ratio. */
   k: number;
-  /** Game road speed, m/s. */
-  gameSpeed: number;
+  /** Wheel speed the trainer is measuring, m/s (see trainerSpeedFor). */
+  trainerSpeed: number;
   /** Rider + bike, kg. */
   mass: number;
   crr: number;
   /** 0.5 * rho * CdA, kg/m. */
   cw: number;
+  /** Largest wind resistance coefficient the trainer accepts, kg/m. */
+  maxCw: number;
   /** Scales how much of the course gradient is felt, 0..1. */
   difficulty: number;
   minGrade: number;
@@ -61,17 +75,24 @@ export interface GearedInput {
 }
 
 /**
- * Model-based rule. The trainer simulates a bike in the reference gear; to feel like gear k
- * at the same pedalling speed it must produce k times the force of the road at k times the
- * wheel speed. Solving for the gradient that does this:
- *   sent = k (G + crr) - crr + cw v^2 (k - 1/k^2) / (m g)
- * with v the game speed.
+ * Model-based rule. The bike on the trainer is in the reference gear, so the trainer's
+ * wheel speed is v_t = cadence x reference gear. In virtual gear k the same cadence would
+ * move a real bike at k v_t, against k times the force at the pedals (gearing). So the
+ * trainer must produce
+ *   F = k (m g (G + crr) + cw (k v_t)^2) = m g (kG + k crr) + k^3 cw v_t^2
+ * which maps straight onto the three simulation parameters: grade kG, crr k crr and wind
+ * resistance k^3 cw. The trainer then reacts to cadence on its own, instantly, instead of
+ * waiting for the game's speed to catch up (which left descents with no resistance at all).
+ * What does not fit in the wind resistance field goes into the gradient using the
+ * estimated wheel speed.
  */
-export function gearedSimGrade(i: GearedInput): SimGrade {
+export function gearedSimGrade(i: GearedInput): SimControl {
   const k = Math.max(0.05, i.k);
   const G = i.courseGrade * i.difficulty;
-  const aero = (i.cw * i.gameSpeed * i.gameSpeed * (k - 1 / (k * k))) / (i.mass * G0);
-  return clampGrade(k * (G + i.crr) - i.crr + aero, i.minGrade, i.maxGrade);
+  const cw = Math.min(i.maxCw, k * k * k * i.cw);
+  const residual = (k * k * k * i.cw - cw) * i.trainerSpeed * i.trainerSpeed;
+  const grade = clampGrade(k * G + residual / (i.mass * G0), i.minGrade, i.maxGrade);
+  return { ...grade, crr: k * i.crr, cw };
 }
 
 export interface OffsetInput {
@@ -80,13 +101,15 @@ export interface OffsetInput {
   neutralIndex: number;
   /** Gradient added per gear step, fraction. */
   stepGrade: number;
+  crr: number;
+  cw: number;
   difficulty: number;
   minGrade: number;
   maxGrade: number;
 }
 
 /** Fallback rule with no physical model: each gear step adds a fixed amount of gradient. */
-export function offsetSimGrade(i: OffsetInput): SimGrade {
+export function offsetSimGrade(i: OffsetInput): SimControl {
   const grade = i.courseGrade * i.difficulty + (i.gearIndex - i.neutralIndex) * i.stepGrade;
-  return clampGrade(grade, i.minGrade, i.maxGrade);
+  return { ...clampGrade(grade, i.minGrade, i.maxGrade), crr: i.crr, cw: i.cw };
 }
