@@ -105,11 +105,15 @@ export interface LineLayout {
 
 /**
  * Everything the chart template needs for a series of one reading per second, at a
- * given width. Returns null when there is nothing to draw.
+ * given width. Returns null when there is nothing to draw. Two series share a chart by
+ * being laid out with the same `duration` and `rightAxis`, so their time axes coincide.
  */
-export function layoutLine(values: Array<number | null>, width: number, zeroBased: boolean): LineLayout | null {
-  const M = CHART_MARGIN;
-  const duration = Math.max(1, values.length - 1);
+export function layoutLine(
+  values: Array<number | null>, width: number, zeroBased: boolean, opts: { rightAxis?: boolean; duration?: number } = {},
+): LineLayout | null {
+  // a right-hand value axis (a second series) needs room for its labels
+  const M = opts.rightAxis ? { ...CHART_MARGIN, right: 40 } : CHART_MARGIN;
+  const duration = Math.max(1, opts.duration ?? values.length - 1);
   const pw = Math.max(10, width - M.left - M.right);
   const ph = CHART_HEIGHT - M.top - M.bottom;
   const sampled = downsample(values, Math.max(40, Math.floor(pw / 2)));

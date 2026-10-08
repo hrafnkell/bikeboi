@@ -66,14 +66,34 @@ async function load(before: number | null) {
   }
 }
 
+// the ride whose delete button is waiting for a yes
+const confirming = ref<string | null>(null);
+const removing = ref<string | null>(null);
+
 async function remove(ride: RideRow) {
-  if (!confirm(`Delete the ride on ${ride.circuitName} from ${when(ride.startedAt)}?`)) return;
+  removing.value = ride.id;
   try {
     await api('DELETE', `/api/rides/${encodeURIComponent(ride.id)}`);
     rides.value = rides.value.filter((r) => r.id !== ride.id);
   } catch (e) {
     error.value = describeError(e);
+  } finally {
+    removing.value = null;
+    confirming.value = null;
   }
+}
+
+/** The headline numbers of a ride, as [label, value] pairs. */
+function specs(ride: RideRow): Array<[string, string]> {
+  const s = ride.summary;
+  return [
+    ['Time', fmtClock(s.durationS)],
+    ['Distance', `${fmtKm(s.distanceM)} km`],
+    ['Avg power', `${Math.round(s.avgPower)} W`],
+    ['Avg heart rate', s.avgHeartRate > 0 ? `${Math.round(s.avgHeartRate)} bpm` : '--'],
+    ['Burned', `${Math.round(s.calories)} kcal`],
+    ['Climbed', `${Math.round(s.ascentM)} m`],
+  ];
 }
 
 function when(ms: number): string {
@@ -99,12 +119,16 @@ onMounted(() => {
           <strong>{{ ride.circuitName }}</strong>
           <span class="ride-when">{{ when(ride.startedAt) }}</span>
         </div>
-        <div class="ride-stats">
-          <span>{{ fmtClock(ride.summary.durationS) }}</span>
-          <span>{{ fmtKm(ride.summary.distanceM) }} km</span>
-          <span>{{ Math.round(ride.summary.avgPower) }} W avg</span>
+        <div class="ride-specs">
+          <div v-for="[label, value] in specs(ride)" :key="label" class="ride-spec">
+            <span class="ride-spec-value">{{ value }}</span>
+            <span class="ride-spec-label">{{ label }}</span>
+          </div>
+        </div>
+        <div v-if="ride.summary.laps > 0 || ride.meta?.workout || ride.meta?.pacer" class="ride-tags">
           <span v-if="ride.summary.laps > 0">{{ ride.summary.laps }} {{ ride.summary.laps === 1 ? 'lap' : 'laps' }}</span>
-          <span v-if="ride.meta?.workout">{{ ride.meta.workout }}</span>
+          <span v-if="ride.meta?.workout">Workout: {{ ride.meta.workout }}</span>
+          <span v-else-if="ride.meta?.pacer">Pacemaker {{ ride.meta.pacer }} W</span>
         </div>
         <div class="row ride-actions">
           <button class="btn" :aria-expanded="open === ride.id ? 'true' : 'false'" @click="open = open === ride.id ? null : ride.id">{{ open === ride.id ? 'Hide details' : 'Details' }}</button>
@@ -113,7 +137,16 @@ onMounted(() => {
           <button v-else-if="intervals.connected" class="btn" :disabled="sending === ride.id" @click="send(ride)">
             {{ sending === ride.id ? 'Sending…' : ride.intervalsError ? 'Retry intervals.icu' : 'Send to intervals.icu' }}
           </button>
-          <button class="btn" @click="remove(ride)">Delete</button>
+          <span v-if="confirming === ride.id" class="ride-confirm">
+            <span>Delete this ride?</span>
+            <button class="btn btn-danger" :disabled="removing === ride.id" @click="remove(ride)">{{ removing === ride.id ? 'Deleting…' : 'Delete' }}</button>
+            <button class="btn" :disabled="removing === ride.id" @click="confirming = null">Keep</button>
+          </span>
+          <button v-else class="btn btn-trash" title="Delete ride" aria-label="Delete ride" @click="confirming = ride.id">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm-3 6h12l-1 12H7L6 9zm4 2v8h2v-8h-2zm4 0v8h2v-8h-2z" />
+            </svg>
+          </button>
         </div>
         <RideDetails v-if="open === ride.id" :ride-id="ride.id" :circuit-id="ride.circuitId" />
       </li>

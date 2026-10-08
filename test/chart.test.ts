@@ -102,3 +102,21 @@ describe('layoutLine', () => {
     expect(layoutLine([null, null], 500, false)).toBeNull();
   });
 });
+
+describe('two series on one chart', () => {
+  test('share the time axis and leave room for the right-hand axis', () => {
+    const power = Array.from({ length: 601 }, (_, i) => 200 + (i % 7));
+    const heart = Array.from({ length: 400 }, (_, i) => 120 + (i % 5)); // readings stopped early
+    const duration = 600;
+    const a = layoutLine(power, 600, true, { rightAxis: true, duration })!;
+    const b = layoutLine(heart, 600, false, { rightAxis: true, duration })!;
+    expect(a.plotWidth).toBe(600 - CHART_MARGIN.left - 40);
+    expect(b.plotWidth).toBe(a.plotWidth);
+    expect(a.timeTicks).toEqual(b.timeTicks);
+    // the shorter series ends two thirds of the way across
+    const lastX = b.points[b.points.length - 1].x;
+    expect(lastX).toBeLessThan(a.plotX + a.plotWidth * 0.7);
+    expect(lastX).toBeGreaterThan(a.plotX + a.plotWidth * 0.6);
+    expect(layoutLine(power, 600, true).plotWidth).toBe(600 - CHART_MARGIN.left - CHART_MARGIN.right);
+  });
+});

@@ -62,7 +62,7 @@ const peaks = computed(() => {
   return PEAK_WINDOWS.filter((w) => p[w] !== undefined).map((w) => [peakLabel(w), `${p[w]} W`] as [string, string]);
 });
 
-// Two measures on different scales get a chart each, never a shared axis.
+// Power and heart rate share one chart, each on its own axis.
 const hasCharts = computed(() => !!finished.value && finished.value.ride.samples.length > 1);
 const powerChart = computed(() => {
   const f = finished.value;
@@ -83,6 +83,7 @@ const heartChart = computed(() => {
     summary: `avg ${Math.round(f.summary.avgHeartRate)} bpm · max ${Math.round(Math.max(...readings))} bpm`,
   };
 });
+const heartSeries = computed(() => (heartChart.value ? { ...heartChart.value, title: 'Heart rate', unit: 'bpm', color: '#e66767', zeroBased: false } : null));
 
 const bestLap = computed(() =>
   props.outcome.laps.reduce<number | null>((b, l) => (b === null || l.time < b ? l.time : b), null),
@@ -122,9 +123,8 @@ function download() {
     <p v-if="workoutLine" class="pacer-result">{{ workoutLine }}</p>
     <p v-if="pacerLine" class="pacer-result">{{ pacerLine }}</p>
     <section v-if="hasCharts && powerChart" class="charts">
-      <LineChart title="Power" unit="W" color="#3987e5" :zero-based="true" :values="powerChart.values" :summary="powerChart.summary" />
-      <LineChart v-if="heartChart" title="Heart rate" unit="bpm" color="#e66767" :zero-based="false" :values="heartChart.values" :summary="heartChart.summary" />
-      <p v-else class="note">No heart-rate data was recorded, so there is no heart-rate graph.</p>
+      <LineChart title="Power" unit="W" color="#3987e5" :zero-based="true" :values="powerChart.values" :summary="powerChart.summary" :secondary="heartSeries" />
+      <p v-if="!heartChart" class="note">No heart-rate data was recorded, so there is no heart-rate line.</p>
     </section>
     <section v-if="outcome.laps.length > 0">
       <h2>Laps</h2>

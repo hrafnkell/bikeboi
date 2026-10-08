@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Graphs for one ride from the account: the circuit, elevation, power and heart rate.
+// Graphs for one ride from the account: the circuit, elevation, and power with heart rate.
 import { computed, onMounted, ref } from 'vue';
 import { ApiError } from '../api/client.ts';
 import { readFitTrack } from '../ride/fit-read.ts';
@@ -74,9 +74,11 @@ onMounted(async () => {
           title="Elevation" unit="m" color="#199e70" :zero-based="false" :values="altitude"
           :summary="`${Math.round(Math.min(...altitude.filter((a): a is number => a !== null)))}–${Math.round(Math.max(...altitude.filter((a): a is number => a !== null)))} m`"
         />
-        <LineChart title="Power" unit="W" color="#3987e5" :zero-based="true" :values="power" :summary="`avg ${stats(power).avg} W · max ${stats(power).max} W`" />
-        <LineChart v-if="hasHeart" title="Heart rate" unit="bpm" color="#e66767" :zero-based="false" :values="heart" :summary="`avg ${stats(heart).avg} bpm · max ${stats(heart).max} bpm`" />
-        <p v-else class="note">No heart-rate data in this ride.</p>
+        <LineChart
+          title="Power" unit="W" color="#3987e5" :zero-based="true" :values="power" :summary="`avg ${stats(power).avg} W · max ${stats(power).max} W`"
+          :secondary="hasHeart ? { title: 'Heart rate', unit: 'bpm', color: '#e66767', zeroBased: false, values: heart, summary: `avg ${stats(heart).avg} bpm · max ${stats(heart).max} bpm` } : null"
+        />
+        <p v-if="!hasHeart" class="note">No heart-rate data in this ride.</p>
       </div>
     </template>
   </div>
