@@ -46,6 +46,11 @@ function selectScene(id: typeof settingsR.scene) {
 }
 selectScene(sceneOptions.some((o) => o.id === settingsR.scene) ? settingsR.scene : 'auto');
 
+function setWarmup(on: boolean) {
+  settingsR.warmup = on;
+  saveSettings();
+}
+
 /** True on the first visit (and false when storage is unavailable, so it never nags every time). */
 function shouldWelcome(): boolean {
   try {
@@ -123,6 +128,10 @@ const welcome = shouldWelcome();
       </section>
     </div>
     <p v-else class="note">Your weight, FTP and your rider’s look are on your account page: the user icon at the top.</p>
+    <label class="check">
+      <input type="checkbox" :checked="settingsR.warmup" @change="setWarmup(($event.target as HTMLInputElement).checked)" />
+      Warm up first: spin on a flat road for as long as you like, then press Start the ride. The warm-up is not recorded.
+    </label>
     <p class="note">Shift with the Click, the on-screen buttons or the up / down arrow keys.</p>
     <div class="start-row">
       <button class="btn btn-primary btn-start" @click="emit('start', selected)">

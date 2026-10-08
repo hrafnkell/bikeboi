@@ -40,6 +40,8 @@ a { color: var(--accent); }
 }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 .note { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.check { display: flex; align-items: flex-start; gap: 10px; font-size: 0.95rem; cursor: pointer; }
+.check input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: #1c7ed6; }
 
 .btn {
   font: inherit;
@@ -280,6 +282,7 @@ a { color: var(--accent); }
   transition: opacity 0.4s;
 }
 .banner.gone { opacity: 0; }
+.btn-go { position: absolute; left: 64%; top: 60%; transform: translate(-50%, -50%); font-size: 1.1rem; padding: 12px 22px; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
 .toast {
   /* over the profile strip, the one spot no panel ever occupies */
   position: absolute; left: 50%; top: calc(10px + var(--strip) / 2); transform: translate(-50%, -50%) scale(0.9);
@@ -427,6 +430,7 @@ a { color: var(--accent); }
 
 /* ---- ride: portrait (game on top, panel below) ---- */
 @media (orientation: portrait) {
+  .btn-go { left: 50%; top: 80%; }
   .ride {
     display: grid;
     grid-template-columns: 1fr 1fr;

@@ -32,6 +32,8 @@ export interface Settings {
   bikeMass: number; // kg
   ftp: number; // W
   gearMode: GearMode;
+  /** Spin on a flat road first, and start the circuit on a button press. */
+  warmup: boolean;
   /** Scales how hard gradients feel on the trainer, 0..1 (1 = true gradient). */
   difficulty: number;
   lastCircuitId: string;
@@ -50,6 +52,7 @@ export const defaultSettings: Settings = {
   bikeMass: 9,
   ftp: 200,
   gearMode: 'model',
+  warmup: false,
   difficulty: 1,
   lastCircuitId: 'rollers',
   scene: 'auto',
@@ -82,6 +85,7 @@ export function normalizeSettings(input: unknown): Settings {
     bikeMass: num(p.bikeMass, d.bikeMass, 4, 30),
     ftp: num(p.ftp, d.ftp, 50, 600),
     gearMode: p.gearMode === 'offset' ? 'offset' : 'model',
+    warmup: p.warmup === true,
     difficulty: num(p.difficulty, d.difficulty, 0, 1, false),
     lastCircuitId: typeof p.lastCircuitId === 'string' && /^[a-z0-9-]{1,40}$/.test(p.lastCircuitId) ? p.lastCircuitId : d.lastCircuitId,
     scene: (SCENES as readonly string[]).includes(p.scene) ? p.scene : 'auto',

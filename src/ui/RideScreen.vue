@@ -24,6 +24,7 @@ onBeforeUnmount(() => ctrl.dispose());
     <div class="stage">
       <canvas ref="canvas" class="stage-canvas"></canvas>
       <div class="banner" :class="{ gone: vm.bannerGone }">{{ ctrl.banner }}</div>
+      <button v-if="vm.warmingUp" class="btn btn-primary btn-go" :disabled="vm.ending" @click="ctrl.startRide()">Start the ride</button>
       <div class="toast" :class="{ show: vm.toastShow }">{{ vm.toastText }}</div>
     </div>
 

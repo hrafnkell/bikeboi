@@ -222,6 +222,12 @@ const defs: CircuitDef[] = [
 
 export const circuits: Circuit[] = defs.map(buildCircuit);
 
+/** The flat road ridden during a warm-up; never listed, never recorded. */
+export const warmupRoad: Circuit = buildCircuit({
+  id: 'warmup', group: 'short', name: 'Warm-up', description: '', seed: 5, scene: 'day', length: 1000,
+  points: [[0, 20], [500, 20]],
+});
+
 /** Circuits under each heading, in listing order. */
 export const circuitGroups = CIRCUIT_GROUPS.map((g) => ({ ...g, circuits: circuits.filter((c) => c.group === g.id) }));
 

@@ -70,6 +70,8 @@ export class Renderer {
   private effortBars: Float32Array = new Float32Array(0);
   private effortColumn = -1;
   private segmentPaints = new Map<string, RiderPaint>();
+  /** Draw the lap strip at the top; off for roads with nothing to show, like the warm-up. */
+  strip = true;
   private palette: Palette;
   private style: SceneStyle;
   private clock = 0;
@@ -158,7 +160,7 @@ export class Renderer {
     });
     this.drawRider(cam, scene.distance, sprite, this.crankAngle, this.wheelAngle, null);
     if (this.style.rain) this.drawRain(scene.speed);
-    this.drawProfile(scene);
+    if (this.strip) this.drawProfile(scene);
   }
 
   private drawSky(cam: Camera): void {

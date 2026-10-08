@@ -26,6 +26,7 @@ import type { SavedRide } from '../ride/ride-store.ts';
 import { SegmentTracker, describeSegment } from '../ride/segments.ts';
 import type { SegmentEffort } from '../ride/segments.ts';
 import { RideSim, projectTime } from '../ride/sim.ts';
+import { warmupRoad } from '../ride/circuits/index.ts';
 import type { LapResult } from '../ride/sim.ts';
 import { WorkoutPlan, describeTarget, parseWorkout } from '../ride/workout.ts';
 import { findWorkout } from '../ride/workouts.ts';
@@ -82,6 +83,8 @@ export interface RideVM {
   segGap: string;
   segGapSide: GapSide;
   bannerGone: boolean;
+  /** True on the warm-up road, before the circuit. */
+  warmingUp: boolean;
   toastText: string;
   toastShow: boolean;
   paused: boolean;
@@ -100,6 +103,8 @@ export interface RideController {
   /** Start the ride on this canvas; call once the canvas is in the document. */
   attach(canvas: HTMLCanvasElement): void;
   setPaused(value: boolean): void;
+  /** End the warm-up and start the circuit. */
+  startRide(): void;
   setSimPower(watts: number): void;
   shift(dir: 1 | -1): void;
   toggleFullscreen(): void;
@@ -125,6 +130,9 @@ export function createRideController(
   let gear = REFERENCE_GEAR;
   let paused = false;
   let started = false;
+  // a warm-up is a separate flat ride before the circuit: nothing from it is kept
+  let warmingUp = settings.warmup && !resume;
+  let canvasEl: HTMLCanvasElement | null = null;
   let ended = false;
   let nextSample = 1;
   let lastSampleTs = 0;
@@ -180,7 +188,7 @@ export function createRideController(
     segVisible: false, segName: '', segColor: segmentColors.climb, segLeft: '', segFill: '0%',
     segTime: '', segInfo: '', segGap: '', segGapSide: '',
     bannerGone: false, toastText: '', toastShow: false,
-    paused: false, pauseTitle: 'Paused', ending: false,
+    paused: false, pauseTitle: 'Paused', ending: false, warmingUp,
     simPower: 0, simDisabled: false,
   });
 
@@ -207,6 +215,9 @@ export function createRideController(
     riderTrack.add(s.time, s.distance);
     pacer?.step();
   });
+  const warmSim = new RideSim(warmupRoad, totalMass());
+  /** The simulation being ridden right now. */
+  const cur = () => (warmingUp ? warmSim : sim);
   let renderer: Renderer | null = null;
 
   let toastTimer = 0;
@@ -327,11 +338,11 @@ export function createRideController(
     const limits = DEFAULT_SIM_LIMITS;
     const target = settings.gearMode === 'offset'
       ? offsetSimGrade({
-        courseGrade: sim.grade, gearIndex: gear, neutralIndex: REFERENCE_GEAR, stepGrade: OFFSET_STEP,
+        courseGrade: cur().grade, gearIndex: gear, neutralIndex: REFERENCE_GEAR, stepGrade: OFFSET_STEP,
         crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
       })
       : gearedSimGrade({
-        courseGrade: sim.grade, k: gearFactor(gear), trainerSpeed: trainerSpeedFor(live.cadence), mass: totalMass(),
+        courseGrade: cur().grade, k: gearFactor(gear), trainerSpeed: trainerSpeedFor(live.cadence), mass: totalMass(),
         crr: CRR, cw: CW, maxCw: MAX_CW, difficulty: settings.difficulty, ...limits,
       });
     saturated = target.saturated;
@@ -346,7 +357,7 @@ export function createRideController(
 
   /** Watts the trainer should hold right now, or null when it should simulate the road. */
   function ergTarget(): number | null {
-    if (!hard) return null;
+    if (!hard || warmingUp) return null;
     if (!plan) return settings.pacer.power * intensity;
     const now = plan.at(sim.time);
     return now.done || now.step.free ? null : now.power * intensity;
@@ -400,6 +411,23 @@ export function createRideController(
     vm.powerMax = `max ${peak.power > 0 ? Math.round(peak.power) : '--'}`;
     vm.cadenceMax = `max ${peak.cadence > 0 ? Math.round(peak.cadence) : '--'}`;
     vm.heartMax = `max ${peak.heartRate > 0 ? Math.round(peak.heartRate) : '--'}`;
+    if (warmingUp) {
+      vm.speed = (warmSim.speed * 3.6).toFixed(1);
+      vm.grade = '0.0';
+      vm.gradeColor = gradeColor(0);
+      vm.dist = fmtKm(warmSim.distance);
+      vm.kcal = String(Math.round(kcalFromJoules(warmSim.work)));
+      vm.climb = '0';
+      vm.lapNo = 'Warm-up';
+      vm.lapTime = fmtClock(warmSim.time);
+      vm.elapsed = '';
+      vm.lapBest = 'Not recorded';
+      vm.lapGap = '';
+      vm.lapGapSide = '';
+      vm.segVisible = false;
+      renderGear();
+      return;
+    }
     vm.speed = (sim.speed * 3.6).toFixed(1);
     const g = sim.grade;
     vm.grade = (g * 100).toFixed(1);
@@ -512,29 +540,41 @@ export function createRideController(
         vm.simDisabled = forced !== null;
         simPowerNow += (simPower - simPowerNow) * Math.min(1, dt * 4);
         live.power = simPowerNow < 1 ? 0 : Math.round(simPowerNow);
-        live.cadence = live.power > 0 ? clamp(cadenceFor(sim.speed, gear), 0, 150) : 0;
+        live.cadence = live.power > 0 ? clamp(cadenceFor(cur().speed, gear), 0, 150) : 0;
       }
       for (let i = 0; i < timeScale; i++) {
-        if (sim.advance(dt, live.power) > 0) afterSteps();
+        if (warmingUp) {
+          if (warmSim.advance(dt, live.power) > 0) {
+            if (warmSim.moving) vm.bannerGone = true;
+            pushControl(false);
+            updateHud();
+          }
+        } else if (sim.advance(dt, live.power) > 0) {
+          afterSteps();
+        }
       }
     }
     const others: OtherRider[] = [];
-    if (ghost) {
+    if (warmingUp) {
+      // alone on the flat: no ghost, pacemaker or segments yet
+    } else if (ghost) {
       others.push({
         kind: 'ghost', label: 'best lap',
         distance: sim.lapIndex * circuit.length + ghostLapDistance(ghost, sim.renderLapTime),
       });
     }
-    if (pacer) others.push({ kind: 'pacer', label: `${pacer.power} W`, distance: pacer.renderDistance(sim.alpha) });
-    for (const g of segments.ghosts(sim.renderDistance, sim.renderTime)) {
-      others.push({ kind: 'segment', label: `best ${g.segment.type}`, distance: g.distance, color: segmentColors[g.segment.type] });
+    if (pacer && !warmingUp) others.push({ kind: 'pacer', label: `${pacer.power} W`, distance: pacer.renderDistance(sim.alpha) });
+    if (!warmingUp) {
+      for (const g of segments.ghosts(sim.renderDistance, sim.renderTime)) {
+        others.push({ kind: 'segment', label: `best ${g.segment.type}`, distance: g.distance, color: segmentColors[g.segment.type] });
+      }
     }
     const posture = paused
       ? stance.current
-      : stance.update(dt, { power: started ? recentPower : live.power, ftp: settings.ftp, speed: sim.speed, grade: sim.grade });
+      : stance.update(dt, { power: started ? recentPower : live.power, ftp: settings.ftp, speed: cur().speed, grade: cur().grade });
     renderer?.draw({
-      distance: sim.renderDistance,
-      speed: paused ? 0 : sim.speed,
+      distance: cur().renderDistance,
+      speed: paused ? 0 : cur().speed,
       cadence: paused ? 0 : live.cadence,
       others,
       stance: posture,
@@ -545,6 +585,22 @@ export function createRideController(
   }
 
   // --- controls ----------------------------------------------------------------
+  /** Leave the warm-up road for the circuit, carrying the current speed across the line. */
+  function startRide() {
+    if (!warmingUp || ended) return;
+    warmingUp = false;
+    vm.warmingUp = false;
+    sim.speed = warmSim.speed;
+    if (canvasEl) {
+      renderer?.destroy();
+      renderer = new Renderer(canvasEl, circuit, settings.scene === 'auto' ? circuit.scene : settings.scene, settings.rider);
+    }
+    vm.bannerGone = false;
+    pushControl(true);
+    updateHud();
+    showToast(warmSim.speed > 0 ? 'Go!' : 'Start pedalling');
+  }
+
   function setPaused(value: boolean) {
     if (ended || paused === value) return;
     paused = value;
@@ -660,7 +716,10 @@ export function createRideController(
 
   function attach(canvas: HTMLCanvasElement) {
     if (renderer || ended) return;
-    renderer = new Renderer(canvas, circuit, settings.scene === 'auto' ? circuit.scene : settings.scene, settings.rider);
+    canvasEl = canvas;
+    const road = warmingUp ? warmupRoad : circuit;
+    renderer = new Renderer(canvas, road, settings.scene === 'auto' ? circuit.scene : settings.scene, settings.rider);
+    renderer.strip = !warmingUp;
 
     offShift = bus.on('shift', (dir) => {
       if (paused) return;
@@ -704,10 +763,13 @@ export function createRideController(
     hasWorkout: plan !== null,
     banner: (resume
       ? (simulated ? 'Raise the power to carry on' : 'Start pedalling to carry on')
-      : (simulated ? 'Raise the power to start' : 'Start pedalling'))
+      : warmingUp
+        ? (simulated ? 'Warm up on the flat, then press Start the ride' : 'Warm up, then press Start the ride')
+        : (simulated ? 'Raise the power to start' : 'Start pedalling'))
       + (simulated && counts ? ' (test ride: counts)' : ''),
     attach,
     setPaused,
+    startRide,
     setSimPower,
     shift: (dir) => bus.emit('shift', dir),
     toggleFullscreen,
