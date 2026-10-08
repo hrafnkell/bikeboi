@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { ApiError } from '../api/client.ts';
 import { readFitTrack } from '../ride/fit-read.ts';
 import type { FitTrack } from '../ride/fit-read.ts';
-import { circuits } from '../ride/circuits/index.ts';
+import { lookupCircuit } from '../ride/circuits/index.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import LineChart from '../ui/LineChart.vue';
 import { settings } from '../state.ts';
@@ -23,7 +23,7 @@ function perSecond<T>(t: FitTrack, values: T[], fill: T): T[] {
   return out;
 }
 
-const circuit = computed<Circuit | null>(() => circuits.find((c) => c.id === props.circuitId) ?? null);
+const circuit = computed<Circuit | null>(() => lookupCircuit(props.circuitId));
 const profilePoints = computed(() => {
   const c = circuit.value;
   if (!c) return '';

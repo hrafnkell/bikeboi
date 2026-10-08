@@ -18,6 +18,11 @@ export interface Segment {
   gain: number;
   /** Average gradient, fraction. */
   avgGrade: number;
+  /**
+   * Where the best is stored, when not under this circuit's own id: a route's segments
+   * keep their bests under the circuit they came from, so they carry over.
+   */
+  key?: string;
 }
 
 export interface SprintDef {

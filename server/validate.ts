@@ -33,7 +33,7 @@ export function timestamp(input: unknown, now = Date.now()): number {
   return Math.min(Math.round(v), now + 5 * 60 * 1000);
 }
 
-export const CIRCUIT_ID = /^[a-z0-9-]{1,40}$/;
+export const CIRCUIT_ID = /^[a-z0-9-]{1,120}$/;
 export const SEGMENT_ID = /^[a-z]+-\d{1,3}$/;
 export const WORKOUT_ID = /^custom:[a-z0-9]{4,32}$/;
 

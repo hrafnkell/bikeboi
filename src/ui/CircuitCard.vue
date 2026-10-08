@@ -1,30 +1,25 @@
 <script setup lang="ts">
-// One selectable circuit: profile, description, stats, best lap and scene tag.
+// One selectable circuit: profile, description, badges, best lap, scene tag, and the
+// buttons that add it to a route.
 import { computed } from 'vue';
 import { findScene } from '../game/scenes.ts';
 import { fmtKm, fmtLap } from '../format.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { loadGhost } from '../ride/ghost.ts';
 import { projectTime } from '../ride/sim.ts';
+import { profileShape } from './profile.ts';
 import { settingsR } from './store.ts';
 
 const props = defineProps<{ circuit: Circuit; selected: boolean }>();
-defineEmits<{ select: [] }>();
+defineEmits<{ select: []; add: [toTop: boolean] }>();
 
 const W = 200;
 const H = 48;
 
-const points = computed(() => {
-  const c = props.circuit;
-  const range = Math.max(8, c.maxAltitude - c.minAltitude);
-  const pts: string[] = [`0,${H}`];
-  for (let i = 0; i <= 100; i++) {
-    const a = (c.altitudeAt((i / 100) * c.length) - c.minAltitude) / range;
-    pts.push(`${(i / 100) * W},${(H - 4 - a * (H - 10)).toFixed(1)}`);
-  }
-  pts.push(`${W},${H}`);
-  return pts.join(' ');
-});
+const shape = computed(() => profileShape(props.circuit, W, H));
+const gradientId = `grad-${props.circuit.id}`;
+/** A summit cut only makes sense when there is a hill to cut at. */
+const hasTop = computed(() => props.circuit.ascent >= 30 && props.circuit.summitAt > 50);
 
 const ghost = loadGhost(props.circuit.id);
 
@@ -34,7 +29,7 @@ const estimate = computed(() => {
   const seconds = projectTime(c, settingsR.riderMass + settingsR.bikeMass, settingsR.ftp * 0.75, 0, 0, c.length);
   if (!Number.isFinite(seconds)) return '';
   const minutes = Math.round(seconds / 60);
-  return `\u2248 ${minutes} min at 75% of FTP`;
+  return `≈ ${minutes} min at 75% of FTP`;
 });
 /** Length, climb and steepest gradient, as [value, label] badges. */
 const badges = computed<Array<[string, string]>>(() => {
@@ -52,9 +47,18 @@ const segments = computed(() => {
 </script>
 
 <template>
-  <button class="circuit" :aria-pressed="selected ? 'true' : 'false'" @click="$emit('select')">
+  <div
+    class="circuit" role="button" tabindex="0" :aria-pressed="selected ? 'true' : 'false'"
+    @click="$emit('select')" @keydown.enter.prevent="$emit('select')" @keydown.space.prevent="$emit('select')"
+  >
     <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="profile">
-      <polygon :points="points" />
+      <defs>
+        <linearGradient :id="gradientId" gradientUnits="userSpaceOnUse" x1="0" :y1="shape.bottom" x2="0" :y2="shape.scaleTop">
+          <stop offset="0" stop-color="#4c956c" />
+          <stop offset="1" stop-color="#d9b26f" />
+        </linearGradient>
+      </defs>
+      <polygon :points="shape.points" :fill="`url(#${gradientId})`" />
     </svg>
     <strong>{{ circuit.name }}</strong>
     <span class="circuit-desc">{{ circuit.description }}</span>
@@ -64,5 +68,9 @@ const segments = computed(() => {
     <span class="circuit-stats">{{ segments }}<template v-if="estimate"> · {{ estimate }}</template></span>
     <span class="circuit-best">{{ ghost ? `Best lap ${fmtLap(ghost.lapTime)}` : 'No lap yet' }}</span>
     <span class="circuit-scene">{{ findScene(circuit.scene).name }}</span>
-  </button>
+    <span class="circuit-add">
+      <button class="btn btn-small" title="Add this circuit to the route" @click.stop="$emit('add', false)">+ Route</button>
+      <button v-if="hasTop" class="btn btn-small" title="Add only the climb, up to the summit, to the route" @click.stop="$emit('add', true)">+ To the top</button>
+    </span>
+  </div>
 </template>

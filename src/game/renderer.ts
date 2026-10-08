@@ -40,6 +40,7 @@ export interface Scene {
 const SPRITE_SCALE = 2.2;
 const TREE_SLOT = 14; // metres between possible tree positions
 const MARKER_EVERY = 500; // metres between distance signs
+const CUT_SECONDS = 0.6; // blackout after the road jumps at an open route's lap line
 
 export const segmentColors = { climb: '#ffa94d', descent: '#74c0fc', sprint: '#b197fc' } as const;
 const segmentGlyph = { climb: '\u25B2', descent: '\u25BC', sprint: '\u26A1' } as const;
@@ -72,6 +73,8 @@ export class Renderer {
   private segmentPaints = new Map<string, RiderPaint>();
   /** Draw the lap strip at the top; off for roads with nothing to show, like the warm-up. */
   strip = true;
+  /** Seconds left of the blackout after a jump in the road. */
+  private blackout = 0;
   private palette: Palette;
   private style: SceneStyle;
   private clock = 0;
@@ -161,6 +164,11 @@ export class Renderer {
     this.drawRider(cam, scene.distance, sprite, this.crankAngle, this.wheelAngle, null);
     if (this.style.rain) this.drawRain(scene.speed);
     if (this.strip) this.drawProfile(scene);
+    if (this.blackout > 0) {
+      this.blackout = Math.max(0, this.blackout - scene.dt);
+      ctx.fillStyle = `rgba(0,0,0,${Math.min(1, this.blackout / CUT_SECONDS * 1.6).toFixed(3)})`;
+      ctx.fillRect(0, 0, width, height);
+    }
   }
 
   private drawSky(cam: Camera): void {
@@ -326,13 +334,39 @@ export class Renderer {
     const step = Math.max(0.4, (d1 - d0) / 120);
     const start = Math.floor(d0 / step) * step;
 
-    ctx.beginPath();
-    for (let d = start; d <= d1 + step; d += step) {
-      ctx.lineTo(toScreenX(cam, d), toScreenY(cam, circuit.altitudeAt(d)));
+    // on an open route the road stops at each lap line and starts again at another height
+    const cuts: number[] = [];
+    if (circuit.open) {
+      for (let d = Math.ceil(d0 / circuit.length) * circuit.length; d <= d1 + step; d += circuit.length) cuts.push(d);
     }
     const road = new Path2D();
+    ctx.beginPath();
+    let pen = false;
+    let next = 0;
     for (let d = start; d <= d1 + step; d += step) {
-      road.lineTo(toScreenX(cam, d), toScreenY(cam, circuit.altitudeAt(d)));
+      if (next < cuts.length && d >= cuts[next]) {
+        // finish the old stretch exactly at the line, drop down and resume just past it
+        const c = cuts[next++];
+        const xEnd = toScreenX(cam, c);
+        const yEnd = toScreenY(cam, circuit.altitudeAt(c - 0.01));
+        ctx.lineTo(xEnd, yEnd);
+        road.lineTo(xEnd, yEnd);
+        ctx.lineTo(xEnd, height + 10);
+        const yNext = toScreenY(cam, circuit.altitudeAt(c + 0.01));
+        ctx.lineTo(xEnd + 1, height + 10);
+        ctx.lineTo(xEnd + 1, yNext);
+        road.moveTo(xEnd + 1, yNext);
+      }
+      const x = toScreenX(cam, d);
+      const y = toScreenY(cam, circuit.altitudeAt(d));
+      if (pen) {
+        ctx.lineTo(x, y);
+        road.lineTo(x, y);
+      } else {
+        ctx.moveTo(x, y);
+        road.moveTo(x, y);
+        pen = true;
+      }
     }
     ctx.lineTo(width + 10, height + 10);
     ctx.lineTo(-10, height + 10);
@@ -456,10 +490,15 @@ export class Renderer {
       }
     }
 
-    // start / finish arch at every lap line
+    // start / finish arch at every lap line (two on an open route: one at each height)
+    const lines: Array<[number, number]> = [];
     for (let d = Math.ceil((d0 - 3) / length) * length; d <= d1 + 3; d += length) {
+      lines.push([d, circuit.altitudeAt(d + 0.01)]);
+      if (circuit.open) lines.push([d, circuit.altitudeAt(d - 0.01)]);
+    }
+    for (const [d, altitude] of lines) {
       const x = toScreenX(cam, d);
-      const y = toScreenY(cam, circuit.altitudeAt(d));
+      const y = toScreenY(cam, altitude);
       const h = sprite * 2.5;
       const w = sprite * 0.5;
       ctx.fillStyle = '#f1f3f5';
@@ -674,6 +713,11 @@ export class Renderer {
     };
     for (const other of scene.others) dot(other.distance, this.colorOf(other), 3.5);
     dot(scene.distance, '#ffffff', 4.5);
+  }
+
+  /** Black out the stage briefly: the road has just jumped (an open route's lap line). */
+  cut(): void {
+    this.blackout = CUT_SECONDS;
   }
 
   /** Paint the columns the rider crossed since the last frame with the zone being ridden. */

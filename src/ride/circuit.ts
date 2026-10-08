@@ -32,6 +32,18 @@ export interface CircuitDef {
   sprints?: SprintDef[];
 }
 
+/** One stretch of a route: a circuit ridden whole, or only up to its highest point. */
+export interface Leg {
+  circuit: Circuit;
+  /** Stop at the summit and jump to the next leg's start. */
+  toTop: boolean;
+  /** Metres from the route start to this leg's start. */
+  start: number;
+  length: number;
+  /** Added to the circuit's altitudes so the legs join up. */
+  lift: number;
+}
+
 export interface Circuit extends CircuitDef {
   /** Altitude in metres at any distance; wraps every lap. */
   altitudeAt(distance: number): number;
@@ -45,6 +57,12 @@ export interface Circuit extends CircuitDef {
   maxGrade: number;
   /** Timed climbs, descents and sprints, in lap order. */
   segments: Segment[];
+  /** True when a lap ends at a different altitude than it starts: the lap line is a jump, not a join. */
+  open?: boolean;
+  /** The circuits a route is made of; absent on a plain circuit. */
+  legs?: Leg[];
+  /** Metres from the start to the highest point. */
+  summitAt: number;
 }
 
 const SAMPLE_STEP = 5; // metres, approximate
@@ -113,12 +131,16 @@ export function buildCircuit(def: CircuitDef): Circuit {
   let maxAltitude = -Infinity;
   let ascent = 0;
   let maxGrade = 0;
+  let summitAt = 0;
   for (let i = 0; i < count; i++) {
     const next = altitudes[(i + 1) % count];
     const prev = altitudes[mod(i - 1, count)];
     grades[i] = (next - prev) / (2 * step);
     minAltitude = Math.min(minAltitude, altitudes[i]);
-    maxAltitude = Math.max(maxAltitude, altitudes[i]);
+    if (altitudes[i] > maxAltitude) {
+      maxAltitude = altitudes[i];
+      summitAt = i * step;
+    }
     ascent += Math.max(0, next - altitudes[i]);
     maxGrade = Math.max(maxGrade, Math.abs(grades[i]));
   }
@@ -146,5 +168,6 @@ export function buildCircuit(def: CircuitDef): Circuit {
     maxAltitude,
     ascent,
     maxGrade,
+    summitAt,
   };
 }

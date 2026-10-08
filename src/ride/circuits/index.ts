@@ -1,4 +1,5 @@
 import { CIRCUIT_GROUPS, buildCircuit } from '../circuit.ts';
+import { MAX_ROUTE_ID, buildRoute, parseRouteId } from '../route.ts';
 import type { Circuit, CircuitDef } from '../circuit.ts';
 
 const defs: CircuitDef[] = [
@@ -231,6 +232,17 @@ export const warmupRoad: Circuit = buildCircuit({
 /** Circuits under each heading, in listing order. */
 export const circuitGroups = CIRCUIT_GROUPS.map((g) => ({ ...g, circuits: circuits.filter((c) => c.group === g.id) }));
 
+/** A built-in circuit or a route of them by id, or null. Routes are rebuilt from their id. */
+export function lookupCircuit(id: string): Circuit | null {
+  const plain = circuits.find((c) => c.id === id);
+  if (plain) return plain;
+  const legs = parseRouteId(id);
+  if (!legs || id.length > MAX_ROUTE_ID) return null;
+  const resolved = legs.map((l) => ({ circuit: circuits.find((c) => c.id === l.id), toTop: !!l.toTop }));
+  if (resolved.some((l) => !l.circuit)) return null;
+  return buildRoute(resolved as Array<{ circuit: Circuit; toTop: boolean }>);
+}
+
 export function findCircuit(id: string): Circuit {
-  return circuits.find((c) => c.id === id) ?? circuits[0];
+  return lookupCircuit(id) ?? circuits[0];
 }

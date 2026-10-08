@@ -3,7 +3,7 @@
 import { onMounted, ref, shallowRef } from 'vue';
 import { fmtClock, fmtKm } from '../format.ts';
 import type { Circuit } from '../ride/circuit.ts';
-import { circuits } from '../ride/circuits/index.ts';
+import { lookupCircuit } from '../ride/circuits/index.ts';
 import {
   discardSavedRide, downloadFit, encodeFit, fitFilename, recoverRide, summarize,
 } from '../ride/recorder.ts';
@@ -22,7 +22,7 @@ onMounted(() => {
   void recoverRide().then((found) => {
     if (disposed || !found) return;
     const s = summarize(found);
-    const c = circuits.find((x) => x.id === found.meta.circuitId) ?? null;
+    const c = lookupCircuit(found.meta.circuitId);
     message.value =
       `An unfinished ride on ${found.meta.circuitName} was found: ${fmtClock(s.durationS)}, ${fmtKm(s.distanceM)} km. ` +
       `${c ? 'You can pick it up where it stopped, or save what was recorded.' : 'You can save what was recorded.'} Starting a new ride replaces it.`;

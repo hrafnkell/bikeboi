@@ -37,6 +37,8 @@ export interface Settings {
   /** Scales how hard gradients feel on the trainer, 0..1 (1 = true gradient). */
   difficulty: number;
   lastCircuitId: string;
+  /** The route being put together on the start screen: circuit ids, whole or to the summit. */
+  route: Array<{ id: string; toTop: boolean }>;
   /** 'auto' uses each circuit's own scene. */
   scene: SceneId | 'auto';
   rider: RiderLook;
@@ -47,6 +49,9 @@ export interface Settings {
   updatedAt: number;
 }
 
+/** Legs a route may have; the id also has to fit the server's circuit id limit. */
+export const MAX_ROUTE_LEGS = 8;
+
 export const defaultSettings: Settings = {
   riderMass: 75,
   bikeMass: 9,
@@ -55,6 +60,7 @@ export const defaultSettings: Settings = {
   warmup: false,
   difficulty: 1,
   lastCircuitId: 'rollers',
+  route: [],
   scene: 'auto',
   rider: { ...defaultRiderLook },
   pacer: { mode: 'off', power: 200, workoutId: 'builtin:threshold-3x10', hard: false },
@@ -88,6 +94,12 @@ export function normalizeSettings(input: unknown): Settings {
     warmup: p.warmup === true,
     difficulty: num(p.difficulty, d.difficulty, 0, 1, false),
     lastCircuitId: typeof p.lastCircuitId === 'string' && /^[a-z0-9-]{1,40}$/.test(p.lastCircuitId) ? p.lastCircuitId : d.lastCircuitId,
+    route: Array.isArray(p.route)
+      ? p.route
+        .filter((l: any) => l && typeof l.id === 'string' && /^[a-z0-9]{1,40}$/.test(l.id))
+        .slice(0, MAX_ROUTE_LEGS)
+        .map((l: any) => ({ id: l.id as string, toTop: l.toTop === true }))
+      : [],
     scene: (SCENES as readonly string[]).includes(p.scene) ? p.scene : 'auto',
     rider: sanitizeLook(p.rider),
     pacer: {

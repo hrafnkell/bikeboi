@@ -81,7 +81,7 @@ The app has an About page (`#about`, `src/ui/about.ts`) built from the screensho
 
 ## Circuits and scenes
 
-Nine circuits from 2 to 20 km (`src/ride/circuits/index.ts`), grouped as short, hilly and long, each with a default scene.
+Nine circuits from 2 to 20 km (`src/ride/circuits/index.ts`), grouped as short, hilly and long, each with a default scene. Circuits can be strung into routes (`src/ride/route.ts`), whole or only up to the summit; a route is rebuilt from its id (`rt--harbour--doomsday-up--flats`), so bests and ride history need nothing extra.
 The scene can be overridden on the home screen: Day, Sunset, Alpine, Rain, Midnight, Tron
 (`src/game/scenes.ts`).
 

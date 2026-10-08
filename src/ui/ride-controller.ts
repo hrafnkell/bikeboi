@@ -193,14 +193,16 @@ export function createRideController(
   });
 
   // --- ride state ----------------------------------------------------------
+  // a route's segments keep their bests under the circuit they came from
+  const segmentKey = (id: string) => circuit.segments.find((s) => s.id === id)?.key ?? `${circuit.id}:${id}`;
   const segments = new SegmentTracker(
     circuit.segments,
     circuit.length,
     {
-      load: (id) => loadGhost(`${circuit.id}:${id}`),
+      load: (id) => loadGhost(segmentKey(id)),
       // a simulated ride proves nothing: its efforts are shown but never kept
       save: (id, trace) => {
-        if (counts) saveGhost(`${circuit.id}:${id}`, trace);
+        if (counts) saveGhost(segmentKey(id), trace);
       },
     },
     onEffort,
@@ -229,6 +231,8 @@ export function createRideController(
   }
 
   function onLap(lap: LapResult) {
+    // an open route's lap line is a jump back to the start: cut to black for a moment
+    if (circuit.open) renderer?.cut();
     const wall = nowMs();
     recorder.addLap({ startTime: lapStartWall, endTime: wall });
     lapStartWall = wall;

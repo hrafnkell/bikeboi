@@ -6,7 +6,9 @@ import { sceneList } from '../game/scenes.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { circuitGroups, circuits, findCircuit } from '../ride/circuits/index.ts';
 import type { SavedRide } from '../ride/ride-store.ts';
-import { saveSettings } from '../state.ts';
+import { MAX_ROUTE_LEGS, saveSettings } from '../state.ts';
+import { MAX_ROUTE_ID, buildRoute, routeId } from '../ride/route.ts';
+import RouteBar from './RouteBar.vue';
 import CircuitCard from './CircuitCard.vue';
 import DeviceList from './DeviceList.vue';
 import PacerEditor from './PacerEditor.vue';
@@ -34,6 +36,31 @@ function select(circuit: Circuit) {
   saveSettings();
 }
 select(selected.value); // normalises an unknown stored id
+
+// --- route: circuits strung together, kept in settings so it survives a reload ---
+const route = computed<Circuit | null>(() => {
+  const legs = settingsR.route
+    .map((l) => ({ circuit: circuits.find((c) => c.id === l.id), toTop: l.toTop }))
+    .filter((l): l is { circuit: Circuit; toTop: boolean } => !!l.circuit);
+  if (legs.length === 0) return null;
+  const built = buildRoute(legs);
+  return built.id.length <= MAX_ROUTE_ID ? built : null;
+});
+function addLeg(circuit: Circuit, toTop: boolean) {
+  if (settingsR.route.length >= MAX_ROUTE_LEGS) return;
+  const next = [...settingsR.route, { id: circuit.id, toTop }];
+  if (routeId(next).length > MAX_ROUTE_ID) return;
+  settingsR.route = next;
+  saveSettings();
+}
+function removeLeg(index: number) {
+  settingsR.route = settingsR.route.filter((_, i) => i !== index);
+  saveSettings();
+}
+function clearRoute() {
+  settingsR.route = [];
+  saveSettings();
+}
 
 // --- scene ---
 const sceneOptions: Array<{ id: typeof settingsR.scene; name: string }> = [
@@ -93,9 +120,12 @@ const welcome = shouldWelcome();
               :circuit="c"
               :selected="c.id === selected.id"
               @select="select(c)"
+              @add="(top) => addLeg(c, top)"
             />
           </div>
         </div>
+        <RouteBar v-if="route" :route="route" @remove="removeLeg" @clear="clearRoute" @ride="emit('start', route!)" />
+        <p v-else class="note">Use + Route on the cards to string circuits together, in order, into one lap. + To the top takes only the climb: at the summit you are put back at the start of the route.</p>
       </section>
       <section>
         <h2>Scene</h2>
