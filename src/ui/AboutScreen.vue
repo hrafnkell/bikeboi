@@ -87,7 +87,7 @@ onMounted(() => window.scrollTo(0, 0));
         <li>Climbs, descents and sprints are timed as segments. As you approach one, a panel shows what is coming; on it, you see how much is left, an estimated finishing time and how you compare with your best. Your best on each segment is kept in this browser, and rides the segment beside you as a ghost in the segment's colour: it waits on the line as you approach and sets off when you cross it.</li>
         <li>The lap strip at the top is painted as you ride it, in the colour of the power zone you are in (grey recovery, blue endurance, green tempo, yellow threshold, orange VO2max, red anaerobic, purple sprint, from your FTP). Each lap paints over the last. The power graph after the ride is coloured the same way, with the time spent in each zone underneath.</li>
         <li>The cards show live power, cadence and heart rate with their highest values so far, plus speed, gradient, distance, metres climbed and an estimate of calories burned.</li>
-        <li>Switching to another app or tab pauses the ride. The screen is kept awake while you ride.</li>
+        <li>Answering a call or switching to another app does not stop the ride: as long as the trainer keeps sending power the clock, the recording and the gradient carry on in the background, and the game catches up when you return. If the phone kills the tab anyway, the start screen offers to resume the ride from its autosave. The screen is kept awake while you ride.</li>
       </ul>
       <dl class="keys">
         <dt>Harder / easier gear</dt>

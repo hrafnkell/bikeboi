@@ -17,6 +17,7 @@ import {
 } from '../ride/gears.ts';
 import { TraceRecorder, gapSeconds, ghostLapDistance, loadGhost, saveGhost } from '../ride/ghost.ts';
 import { powerZone } from '../ride/zones.ts';
+import { createTicker } from './background-ticker.ts';
 import type { RideOutcome } from '../ride/outcome.ts';
 import { Pacer, Track } from '../ride/pacer.ts';
 import { Recorder } from '../ride/recorder.ts';
@@ -541,7 +542,15 @@ export function createRideController(
   // --- loop ------------------------------------------------------------------
   let raf = 0;
   let last = performance.now();
-  function frame(now: number) {
+  // while the page is hidden (a call, another app) a worker keeps the ride ticking without drawing
+  let hidden = false;
+  let hiddenRideStart = 0;
+  const ticker = createTicker(() => {
+    if (hidden) advance(performance.now());
+  });
+
+  /** Move the ride on to `now`: power in, physics, recording, trainer control, HUD. */
+  function advance(now: number): number {
     const dt = clamp((now - last) / 1000, 0, 0.5);
     last = now;
     if (!paused) {
@@ -567,6 +576,16 @@ export function createRideController(
         }
       }
     }
+    return dt;
+  }
+
+  function frame(now: number) {
+    if (hidden) {
+      // the worker is advancing the ride; drawing resumes with the next visible frame
+      raf = requestAnimationFrame(frame);
+      return;
+    }
+    const dt = advance(now);
     const others: OtherRider[] = [];
     if (warmingUp) {
       // alone on the flat: no ghost, pacemaker or segments yet
@@ -648,8 +667,20 @@ export function createRideController(
   let offShift = () => {};
   let offKeys = () => {};
   const onVisibility = () => {
-    if (document.visibilityState === 'hidden') setPaused(true);
-    else void acquireWakeLock();
+    if (document.visibilityState === 'hidden') {
+      if (ended) return;
+      hidden = true;
+      hiddenRideStart = cur().time;
+      last = performance.now();
+      ticker.start();
+    } else {
+      ticker.stop();
+      hidden = false;
+      last = performance.now();
+      const rode = cur().time - hiddenRideStart;
+      if (rode >= 5) showToast(`Kept riding while you were away: ${fmtClock(rode)}`);
+      void acquireWakeLock();
+    }
   };
   const onPop = () => {
     // the back gesture pauses instead of leaving the ride
@@ -666,6 +697,7 @@ export function createRideController(
     offShift();
     offKeys();
     document.removeEventListener('visibilitychange', onVisibility);
+    ticker.dispose();
     window.removeEventListener('popstate', onPop);
     window.removeEventListener('beforeunload', onBeforeUnload);
     renderer?.destroy();
