@@ -18,6 +18,8 @@ export interface ResumeState {
   lapTrace: Array<[number, number]>;
   /** Every recorded second as [ride time, distance], for replaying segments. */
   track: Array<[number, number]>;
+  /** The warm-up that came before the circuit, if any: it stays in the file as an offset. */
+  warmup: { seconds: number; metres: number };
   lastSampleTs: number;
   /** Wall-clock start of the unfinished lap, for the ride file. */
   lapStartWall: number;
@@ -25,6 +27,10 @@ export interface ResumeState {
 
 export function resumeState(ride: SavedRide, circuit: Circuit): ResumeState {
   const length = circuit.length;
+  // a warm-up precedes the circuit in the file: its seconds and metres are an offset on the rest
+  const warm = ride.samples.filter((s) => s.warmup);
+  const warmup = { seconds: warm.length, metres: warm.length ? warm[warm.length - 1].distance : 0 };
+  const main = ride.samples.filter((s) => !s.warmup).map((s) => ({ ...s, distance: s.distance - warmup.metres }));
   const laps: LapResult[] = [];
   const track: Array<[number, number]> = [];
   const peak = { power: 0, cadence: 0, heartRate: 0 };
@@ -34,7 +40,7 @@ export function resumeState(ride: SavedRide, circuit: Circuit): ResumeState {
   let prevD = 0;
   let prevAlt: number | null = null;
 
-  ride.samples.forEach((s, i) => {
+  main.forEach((s, i) => {
     const t = i + 1;
     const d = Math.max(prevD, s.distance);
     while (d >= (laps.length + 1) * length) {
@@ -60,7 +66,8 @@ export function resumeState(ride: SavedRide, circuit: Circuit): ResumeState {
   const last = ride.samples[ride.samples.length - 1];
 
   return {
-    time: ride.samples.length,
+    warmup,
+    time: main.length,
     distance: prevD,
     ascent,
     work,

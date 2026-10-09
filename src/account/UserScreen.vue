@@ -15,26 +15,32 @@ onMounted(() => window.scrollTo(0, 0));
   <main class="screen user">
     <div class="row"><button class="btn" @click="emit('back')">&larr; Back to start</button></div>
     <h1>Your account</h1>
-    <section>
-      <h2>Your week</h2>
-      <StatsCard />
-    </section>
-    <section>
-      <h2>Account</h2>
-      <AccountCard @signed-out="emit('back')" />
-    </section>
-    <section>
-      <h2>intervals.icu</h2>
-      <IntervalsCard />
-    </section>
-    <section>
-      <h2>Setup</h2>
-      <SetupFields />
-    </section>
-    <section>
-      <h2>Your rider</h2>
-      <RiderEditor />
-    </section>
+    <div class="group">
+      <section>
+        <h2>Your week</h2>
+        <StatsCard />
+      </section>
+    </div>
+    <div class="group">
+      <section>
+        <h2>Account</h2>
+        <AccountCard @signed-out="emit('back')" />
+      </section>
+      <section>
+        <h2>intervals.icu</h2>
+        <IntervalsCard />
+      </section>
+    </div>
+    <div class="group">
+      <section>
+        <h2>Setup</h2>
+        <SetupFields />
+      </section>
+      <section>
+        <h2>Your rider</h2>
+        <RiderEditor />
+      </section>
+    </div>
     <div class="row"><button class="btn" @click="emit('back')">&larr; Back to start</button></div>
   </main>
 </template>

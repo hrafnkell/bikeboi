@@ -145,9 +145,13 @@ function download() {
       <LineChart title="Power" unit="W" color="#3987e5" :zero-based="true" :values="powerChart.values" :summary="powerChart.summary" :secondary="heartSeries" :zones-ftp="settings.ftp" />
       <p v-if="!heartChart" class="note">No heart-rate data was recorded, so there is no heart-rate line.</p>
     </section>
-    <section v-if="outcome.laps.length > 0">
+    <section v-if="outcome.laps.length > 0 || outcome.warmup">
       <h2>Laps</h2>
       <ol class="laps">
+        <li v-if="outcome.warmup">
+          <span>Warm-up</span>
+          <span>{{ fmtClock(outcome.warmup.seconds) }} · {{ fmtKm(outcome.warmup.metres) }} km</span>
+        </li>
         <li v-for="l in outcome.laps" :key="l.number" :class="l.time === bestLap ? 'best' : ''">
           <span>Lap {{ l.number }}</span>
           <span>{{ fmtLap(l.time) }}{{ l.time === bestLap ? ' ★' : '' }}</span>

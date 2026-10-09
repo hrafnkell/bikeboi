@@ -19,4 +19,6 @@ export interface RideOutcome {
   pacer: { power: number; gap: PacerGap } | null;
   /** The workout the pacemaker followed, and how much of it was ridden, in seconds. */
   workout: { name: string; ridden: number; duration: number } | null;
+  /** The warm-up ridden before the circuit, if any; it is in the file and the totals. */
+  warmup: { seconds: number; metres: number } | null;
 }

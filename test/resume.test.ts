@@ -36,6 +36,24 @@ function saved(count: number): SavedRide {
 }
 
 describe('resume state', () => {
+  test('a warm-up before the circuit is an offset, not circuit distance', () => {
+    const ride = saved(250);
+    // 60 s of warm-up at 8 m/s, flat, then the circuit samples shifted after it
+    const warm: RideSample[] = Array.from({ length: 60 }, (_, i) => ({
+      timestamp: T0 + (i + 1) * 1000, power: 120, cadence: 80, speed: 8, heartRate: 120,
+      distance: (i + 1) * 8, altitude: circuit.altitudeAt(0), grade: 0, warmup: true,
+    }));
+    ride.samples = [...warm, ...ride.samples.map((x) => ({ ...x, timestamp: x.timestamp + 60_000, distance: x.distance + 480 }))];
+    const s = resumeState(ride, circuit);
+    expect(s.warmup).toEqual({ seconds: 60, metres: 480 });
+    expect(s.time).toBe(250);
+    expect(s.distance).toBe(2500);
+    expect(s.laps.map((l) => l.number)).toEqual([1, 2]);
+    expect(s.peak.power).toBe(220);
+    expect(s.lastSampleTs).toBe(T0 + 310_000);
+    expect(resumeState(saved(10), circuit).warmup).toEqual({ seconds: 0, metres: 0 });
+  });
+
   test('rebuilds time, distance, laps and totals from the samples', () => {
     const s = resumeState(saved(250), circuit);
     expect(s.time).toBe(250);

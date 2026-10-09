@@ -45,11 +45,15 @@ export interface RideSample {
   sentGrade?: number;
   /** Watts the trainer was told to hold (ERG), when it was. */
   target?: number;
+  /** Taken on the warm-up road, before the circuit. */
+  warmup?: boolean;
 }
 
 export interface RideLap {
   startTime: number; // ms since epoch
   endTime: number; // ms since epoch
+  /** The warm-up before the circuit: in the file, not a circuit lap. */
+  warmup?: boolean;
 }
 
 export interface RideMeta {

@@ -86,7 +86,7 @@ export function summarize(ride: SavedRide): RideSummary {
     ascentM,
     // one sample per second, so the sum of watts is the work in joules
     calories: Math.round(kcalFromJoules(samples.reduce((j, s) => j + Math.max(0, s.power), 0))),
-    laps: ride.laps.length,
+    laps: ride.laps.filter((l) => !l.warmup).length,
   };
 }
 

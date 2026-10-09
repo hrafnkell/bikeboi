@@ -132,8 +132,11 @@ export function createRideController(
   let gear = REFERENCE_GEAR;
   let paused = false;
   let started = false;
-  // a warm-up is a separate flat ride before the circuit: nothing from it is kept
+  // a warm-up is a flat ride before the circuit: recorded as part of the ride, but no laps,
+  // segments or bests come from it
   let warmingUp = settings.warmup && !resume;
+  // how much of the ride the warm-up took; added to the circuit's clock and distance
+  const warmOffset = { seconds: 0, metres: 0 };
   let canvasEl: HTMLCanvasElement | null = null;
   let ended = false;
   let nextSample = 1;
@@ -222,6 +225,10 @@ export function createRideController(
   const warmSim = new RideSim(warmupRoad, totalMass());
   /** The simulation being ridden right now. */
   const cur = () => (warmingUp ? warmSim : sim);
+  /** Ride time and distance including the warm-up. */
+  const totalTime = () => (warmingUp ? warmSim.time : warmOffset.seconds + sim.time);
+  const totalDistance = () => (warmingUp ? warmSim.distance : warmOffset.metres + sim.distance);
+  const totalWork = () => warmSim.work + sim.work;
   let renderer: Renderer | null = null;
 
   let toastTimer = 0;
@@ -431,7 +438,7 @@ export function createRideController(
       vm.lapNo = 'Warm-up';
       vm.lapTime = fmtClock(warmSim.time);
       vm.elapsed = '';
-      vm.lapBest = 'Not recorded';
+      vm.lapBest = 'Counts, but sets no bests';
       vm.lapGap = '';
       vm.lapGapSide = '';
       vm.segVisible = false;
@@ -442,12 +449,12 @@ export function createRideController(
     const g = sim.grade;
     vm.grade = (g * 100).toFixed(1);
     vm.gradeColor = gradeColor(g);
-    vm.dist = fmtKm(sim.distance);
-    vm.kcal = String(Math.round(kcalFromJoules(sim.work)));
+    vm.dist = fmtKm(totalDistance());
+    vm.kcal = String(Math.round(kcalFromJoules(totalWork())));
     vm.climb = String(Math.round(sim.ascent));
     vm.lapNo = `Lap ${sim.lapIndex + 1}`;
     vm.lapTime = fmtLap(sim.lapTime);
-    vm.elapsed = fmtClock(sim.time);
+    vm.elapsed = fmtClock(totalTime());
     if (ghost) {
       vm.lapBest = `Best ${fmtLap(ghost.lapTime)}`;
       const gap = gapSeconds(ghost, sim.lapTime, sim.lapDistance);
@@ -500,30 +507,33 @@ export function createRideController(
       timestamp: ts,
       power: Math.round(live.power),
       cadence: Math.round(live.cadence),
-      speed: sim.speed,
+      speed: cur().speed,
       heartRate: Math.round(live.heartRate),
-      distance: sim.distance,
-      altitude: sim.altitude,
-      grade: sim.grade * 100,
+      distance: totalDistance(),
+      // the warm-up road is drawn flat at the circuit's start height
+      altitude: warmingUp ? circuit.altitudeAt(0) : sim.altitude,
+      grade: warmingUp ? 0 : sim.grade * 100,
       gear: gear + 1,
       wheelSpeed: live.wheelSpeed,
       sentGrade: trainerMode === 'erg' || Number.isNaN(lastSent) ? undefined : lastSent * 100,
       target: trainerMode === 'erg' ? lastErg : undefined,
+      ...(warmingUp ? { warmup: true } : {}),
     });
-    trace.sample(sim.lapTime, sim.lapDistance);
+    if (!warmingUp) trace.sample(sim.lapTime, sim.lapDistance);
   }
 
   function afterSteps() {
-    if (sim.moving && !started) {
+    const moving = cur().moving;
+    if (moving && !started) {
       started = true;
       const t = nowMs();
       lapStartWall = t;
       recorder.begin({ circuitId: circuit.id, circuitName: circuit.name, startedAt: t });
       vm.bannerGone = true;
     }
-    if (sim.moving) vm.bannerGone = true;
+    if (moving) vm.bannerGone = true;
     if (started) {
-      if (sim.moving) recorder.resume(nowMs());
+      if (moving) recorder.resume(nowMs());
       else recorder.pause(nowMs());
       steadyPower += (live.power - steadyPower) * 0.05;
       recentPower += (live.power - recentPower) * 0.3;
@@ -531,7 +541,7 @@ export function createRideController(
       peak.cadence = Math.max(peak.cadence, live.cadence);
       peak.heartRate = Math.max(peak.heartRate, live.heartRate);
     }
-    while (sim.time >= nextSample) {
+    while (totalTime() >= nextSample) {
       sample();
       nextSample += 1;
     }
@@ -565,15 +575,7 @@ export function createRideController(
         live.cadence = live.power > 0 ? clamp(cadenceFor(cur().speed, gear), 0, 150) : 0;
       }
       for (let i = 0; i < timeScale; i++) {
-        if (warmingUp) {
-          if (warmSim.advance(dt, live.power) > 0) {
-            if (warmSim.moving) vm.bannerGone = true;
-            pushControl(false);
-            updateHud();
-          }
-        } else if (sim.advance(dt, live.power) > 0) {
-          afterSteps();
-        }
+        if (cur().advance(dt, live.power) > 0) afterSteps();
       }
     }
     return dt;
@@ -622,6 +624,14 @@ export function createRideController(
     if (!warmingUp || ended) return;
     warmingUp = false;
     vm.warmingUp = false;
+    warmOffset.seconds = warmSim.time;
+    warmOffset.metres = warmSim.distance;
+    if (started) {
+      // the warm-up is its own lap in the file
+      const wall = nowMs();
+      recorder.addLap({ startTime: lapStartWall, endTime: wall, warmup: true });
+      lapStartWall = wall;
+    }
     sim.speed = warmSim.speed;
     if (canvasEl) {
       renderer?.destroy();
@@ -730,6 +740,7 @@ export function createRideController(
       workout: plan && started
         ? { name: workoutEntry!.name, ridden: Math.min(sim.time, plan.duration), duration: plan.duration }
         : null,
+      warmup: warmSim.time > 0 ? { seconds: warmingUp ? warmSim.time : warmOffset.seconds, metres: warmingUp ? warmSim.distance : warmOffset.metres } : null,
     });
   }
 
@@ -737,8 +748,10 @@ export function createRideController(
     const state = resumeState(resume, circuit);
     recorder.resumeFrom(resume);
     sim.restore(state);
+    warmOffset.seconds = state.warmup.seconds;
+    warmOffset.metres = state.warmup.metres;
     started = true;
-    nextSample = state.time + 1;
+    nextSample = state.warmup.seconds + state.time + 1;
     lastSampleTs = state.lastSampleTs;
     lapStartWall = state.lapStartWall;
     clockOffset = Math.max(0, state.lastSampleTs + 1000 - Date.now());

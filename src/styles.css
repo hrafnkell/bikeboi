@@ -227,6 +227,7 @@ a { color: var(--accent); }
 .account-error { margin: 0; color: var(--bad); font-size: 0.9rem; }
 .btn-link { background: none; border-color: transparent; color: var(--muted); }
 .account .btn, .rides .btn, .user .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.group .stats-card { background: none; border: 0; padding: 0; }
 .stats-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .stats-verdict { margin: 0 0 8px; font-weight: 600; }
 .stats-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.95rem; }

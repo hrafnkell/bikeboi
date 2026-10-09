@@ -160,7 +160,7 @@ const welcome = shouldWelcome();
     <p v-else class="note">Your weight, FTP and your rider’s look are on your account page: the user icon at the top.</p>
     <label class="check">
       <input type="checkbox" :checked="settingsR.warmup" @change="setWarmup(($event.target as HTMLInputElement).checked)" />
-      Warm up first: spin on a flat road for as long as you like, then press Start the ride. The warm-up is not recorded.
+      Warm up first: spin on a flat road for as long as you like, then press Start the ride. The warm-up is in the ride file and the totals, but sets no times.
     </label>
     <p class="note">Shift with the Click, the on-screen buttons or the up / down arrow keys.</p>
     <div class="start-row">
