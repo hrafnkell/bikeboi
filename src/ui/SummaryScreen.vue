@@ -91,7 +91,7 @@ const heartSeries = computed(() => (heartChart.value ? { ...heartChart.value, ti
 const praise = computed(() => {
   const f = finished.value;
   if (!f) return '';
-  if (props.outcome.efforts.some((e) => e.isBest && e.previousBest !== null)) return 'New best! Great ride.';
+  if (!props.outcome.simulated && props.outcome.efforts.some((e) => e.isBest)) return 'New best! Great ride.';
   if (f.summary.durationS >= 3600) return 'An hour in the saddle. Well done.';
   if (f.summary.durationS >= 1200) return 'Good job!';
   return 'Nice one.';

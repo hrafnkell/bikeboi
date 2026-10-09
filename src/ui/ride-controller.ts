@@ -250,8 +250,8 @@ export function createRideController(
     trace.reset();
     const best = !ghost || lap.time < ghost.lapTime;
     if (best) {
-      // beating a time you already had is worth confetti; a first lap is just a lap
-      if (ghost && counts) renderer?.celebrate();
+      // a best is a best, the first time included
+      if (counts) renderer?.celebrate();
       ghost = finishedTrace; // chased for the rest of this ride either way
       if (counts) saveGhost(circuit.id, finishedTrace);
     }
@@ -311,7 +311,7 @@ export function createRideController(
         ? `  ★ best by ${(previousBest - time).toFixed(1)} s`
         : `  +${(time - previousBest).toFixed(1)} s`;
     showToast(`${segment.name}  ${fmtLap(time)}${versus}`);
-    if (isBest && previousBest !== null && counts) renderer?.celebrate();
+    if (isBest && counts) renderer?.celebrate();
   }
 
   function renderSegment() {
