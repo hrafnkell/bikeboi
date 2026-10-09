@@ -60,7 +60,20 @@ a { color: var(--accent); }
 .btn-start { font-size: 1.15rem; padding: 16px; }
 
 /* ---- home ---- */
-.group { border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 18px; background: rgba(255, 255, 255, 0.015); }
+.group { position: relative; border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 18px; background: rgba(255, 255, 255, 0.015); }
+.group .intro { margin: 0; color: var(--muted); }
+.help-btn {
+  position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); font: inherit; font-weight: 700; font-size: 0.85rem;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; z-index: 1;
+}
+.help-btn:hover { color: var(--text); border-color: var(--accent); }
+.help { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; }
+.help-body { color: var(--muted); margin-bottom: 16px; }
+.help-body p { margin: 0 0 10px; }
+.help-body ul { margin: 0 0 10px; padding-left: 20px; }
+.help-body li { margin-bottom: 6px; }
+.help-body strong { color: var(--text); }
 .start-row { display: flex; gap: 10px; }
 .start-row .btn-start { flex: 1; }
 .start-row .btn-surprise { flex: 0 0 auto; }

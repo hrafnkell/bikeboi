@@ -20,6 +20,7 @@ import SetupFields from './SetupFields.vue';
 import { settingsR } from './store.ts';
 import { useDevices } from './useDevices.ts';
 import WelcomeDialog from './WelcomeDialog.vue';
+import HelpTip from './HelpTip.vue';
 
 /** Where users of a hosted copy can get the source (AGPL section 13). */
 const SOURCE_URL = 'https://github.com/hrafnkell/bikeboi';
@@ -103,18 +104,36 @@ const welcome = shouldWelcome();
       @resume="(c, r) => emit('resume', c, r)"
     />
     <div class="group">
-        Bikeboi is a side scrolling game for bike trainers. Connect your trainer and any accessories, pick a track or a combo of tracks and start riding.<br/>
-        Account is optional, but will keep your rides and settings between different devices.<br/>
-        Bikeboi works on phones, tablets and PCs. Chrome is preferred.
-
+      <p class="intro">
+        bikeboi is a side-scrolling game for bike trainers. Connect your trainer and any accessories, pick a circuit or string a few together, and start riding.
+        An account is optional, but keeps your rides and settings across devices. Works on phones, tablets and PCs; Chrome is preferred.
+      </p>
     </div>
     <div class="group">
+      <HelpTip title="Devices">
+        <p>Devices connect over Bluetooth from the browser, which needs Web Bluetooth: Chrome or Edge on Android, Windows, macOS or Linux. Safari and iPhones cannot connect.</p>
+        <ul>
+          <li><strong>Trainer</strong> — needed for a real ride. It sends your power and cadence and takes the road's gradient. Any FTMS trainer should work, FE-C ones too. Without one, "Ride with simulated power" lets you try everything with a slider instead; such rides don't count.</li>
+          <li><strong>Heart rate</strong> — optional, but worth it: it goes into the ride file, the graphs and intervals.icu.</li>
+          <li><strong>Zwift Click</strong> — optional. Its two buttons shift the virtual gears. Without one, shift with the + and − buttons on screen or the up / down arrow keys. Other shifters are not supported.</li>
+        </ul>
+        <p>Keep the trainer awake and close to the phone; a dropped connection reconnects on its own when it can.</p>
+      </HelpTip>
       <section>
         <h2>Devices</h2>
         <DeviceList />
       </section>
     </div>
     <div class="group">
+      <HelpTip title="Circuits and routes">
+        <p>Tap a circuit to select it; the Ride button rides laps of it until you stop. Each card shows its profile, length, climb and steepest gradient, an estimate at 75% of your FTP, and your best lap.</p>
+        <ul>
+          <li><strong>+ Route</strong> adds the whole circuit to a route. A route is several circuits ridden one after another as a single lap, in the order you add them; it gets its own profile and best lap. Ride it from the route bar.</li>
+          <li><strong>+ To the top</strong> adds only the climb: the leg ends at the summit and you are put straight back at the start of the next leg. Add the same hill twice for repeats.</li>
+          <li><strong>Scene</strong> changes the look of the ride (daylight, sunset, rain, midnight, Tron…); "Circuit default" uses each circuit's own.</li>
+        </ul>
+        <p>Climbs, descents and sprints on a circuit are timed as segments, and your best on each rides beside you as a ghost.</p>
+      </HelpTip>
       <section>
         <h2>Circuit</h2>
         <div v-for="g in circuitGroups" :key="g.id" class="circuit-group">
@@ -147,6 +166,15 @@ const welcome = shouldWelcome();
       </section>
     </div>
     <div class="group">
+      <HelpTip title="The pacemaker">
+        <p>A robot rider to chase, or to be chased by. The ride shows how far ahead or behind it is and the time to catch it; it never waits for you.</p>
+        <ul>
+          <li><strong>Off</strong> — ride alone, against your ghost.</li>
+          <li><strong>Steady watts</strong> — the robot rides the course at one power. Pick a number near your FTP for a hard lap, below it for company.</li>
+          <li><strong>Workout</strong> — the robot follows a structured workout (warm-up, intervals, cool-down) written in the intervals.icu format, scaled to your FTP; pick a built-in one or write your own. The ride shows the current step and what comes next.</li>
+          <li><strong>Hard mode</strong> — instead of simulating the road, the trainer holds the pacemaker's power for you (ERG), whatever your cadence. The + and − buttons then make the whole session 5% harder or easier rather than changing gear.</li>
+        </ul>
+      </HelpTip>
       <section>
         <h2>Pacemaker</h2>
         <PacerEditor />
@@ -154,6 +182,10 @@ const welcome = shouldWelcome();
     </div>
     <!-- signed-in riders find these under the user icon instead -->
     <div v-if="account.status !== 'in'" class="group">
+      <HelpTip title="Rider and setup">
+        <p>Your weight, the bike's weight and your FTP set how fast you go for a given power and what the zones and estimates mean; get FTP roughly right and the rest follows. Hill difficulty scales how much of each gradient the trainer makes you feel, without changing your speed. Gear feel picks the model behind the virtual gears. The rider's look is just for you.</p>
+        <p>With an account these live on your account page instead and follow you between devices.</p>
+      </HelpTip>
       <section>
         <h2>Your rider</h2>
         <RiderEditor />
