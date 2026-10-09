@@ -83,7 +83,7 @@ onMounted(refresh);
         <span class="account-status">{{ status.athleteId }}</span>
       </p>
       <label class="field">
-        <span>Send rides automatically when they finish</span>
+        <span>Send rides automatically when they finish <small class="note">Leave this off if Garmin Connect or Strava already feeds your intervals.icu: a ride sent twice shows up twice.</small></span>
         <input type="checkbox" :checked="status.auto" :disabled="busy" aria-label="Send rides to intervals.icu automatically" @change="setAuto(($event.target as HTMLInputElement).checked)" />
       </label>
       <p class="note">Rides you ride from now on go to intervals.icu as "bikeboi: &lt;circuit&gt;". Earlier rides can be sent one by one from My rides.</p>
@@ -100,7 +100,7 @@ onMounted(refresh);
         <button class="btn btn-primary" :disabled="busy || apiKey.length < 8">{{ busy ? 'Checking…' : 'Connect' }}</button>
       </div>
       <label class="field">
-        <span>Send rides automatically when they finish</span>
+        <span>Send rides automatically when they finish <small class="note">Leave this off if Garmin Connect or Strava already feeds your intervals.icu: a ride sent twice shows up twice.</small></span>
         <input v-model="auto" type="checkbox" aria-label="Send rides to intervals.icu automatically" />
       </label>
     </form>
