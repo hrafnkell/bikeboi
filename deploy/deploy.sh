@@ -38,6 +38,6 @@ BASE="http://127.0.0.1:${PORT:-3070}"
 curl -fsS "$BASE/healthz" && echo
 curl -fsS "$BASE/api/health" && echo
 # the page must point at a script that the server actually has
-JS=$(curl -fsS "$BASE/" | grep -o 'src="[^"]*\.js"' | head -1 | sed 's/src="\.\{0,1\}//; s/"$//')
+JS=$(curl -fsS "$BASE/" | grep -o 'src=".{0,1}/assets/[^"]*.js"' | head -1 | sed 's/src=".{0,1}//; s/"$//')
 curl -fsS -o /dev/null -w "$JS -> %{http_code}\n" "$BASE$JS"
 REMOTE
