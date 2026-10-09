@@ -2,7 +2,8 @@
 // Rides kept in the account, newest first.
 import { onMounted, ref } from 'vue';
 import { api } from '../api/client.ts';
-import { fmtClock, fmtKm } from '../format.ts';
+import { fmtClock } from '../format.ts';
+import { fmtAlt, fmtDist } from '../ui/units.ts';
 import type { RideSummary } from '../ride/recorder.ts';
 import RideDetails from './RideDetails.vue';
 import { describeError } from './session.ts';
@@ -88,11 +89,11 @@ function specs(ride: RideRow): Array<[string, string]> {
   const s = ride.summary;
   return [
     ['Time', fmtClock(s.durationS)],
-    ['Distance', `${fmtKm(s.distanceM)} km`],
+    ['Distance', fmtDist(s.distanceM)],
     ['Avg power', `${Math.round(s.avgPower)} W`],
     ['Avg heart rate', s.avgHeartRate > 0 ? `${Math.round(s.avgHeartRate)} bpm` : '--'],
     ['Burned', `${Math.round(s.calories)} kcal`],
-    ['Climbed', `${Math.round(s.ascentM)} m`],
+    ['Climbed', fmtAlt(s.ascentM)],
   ];
 }
 

@@ -3,7 +3,8 @@
 // buttons that add it to a route.
 import { computed } from 'vue';
 import { findScene } from '../game/scenes.ts';
-import { fmtKm, fmtLap } from '../format.ts';
+import { fmtLap } from '../format.ts';
+import { fmtAlt, fmtDist } from './units.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { loadGhost } from '../ride/ghost.ts';
 import { projectTime } from '../ride/sim.ts';
@@ -35,8 +36,8 @@ const estimate = computed(() => {
 const badges = computed<Array<[string, string]>>(() => {
   const c = props.circuit;
   return [
-    [`${fmtKm(c.length, 1)} km`, 'length'],
-    [`${Math.round(c.ascent)} m`, 'climb'],
+    [fmtDist(c.length, 1), 'length'],
+    [fmtAlt(c.ascent), 'climb'],
     [`${(c.maxGrade * 100).toFixed(0)}%`, 'max'],
   ];
 });

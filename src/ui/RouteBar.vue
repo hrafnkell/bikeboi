@@ -2,7 +2,8 @@
 // The route being put together on the start screen: its legs, the strung-together
 // profile, and the button to ride it.
 import { computed } from 'vue';
-import { fmtKm, fmtLap } from '../format.ts';
+import { fmtLap } from '../format.ts';
+import { fmtAlt, fmtDist } from './units.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { loadGhost } from '../ride/ghost.ts';
 import { projectTime } from '../ride/sim.ts';
@@ -23,8 +24,8 @@ const estimate = computed(() => {
   return Number.isFinite(seconds) ? `≈ ${Math.round(seconds / 60)} min at 75% of FTP` : '';
 });
 const badges = computed<Array<[string, string]>>(() => [
-  [`${fmtKm(props.route.length, 1)} km`, 'length'],
-  [`${Math.round(props.route.ascent)} m`, 'climb'],
+  [fmtDist(props.route.length, 1), 'length'],
+  [fmtAlt(props.route.ascent), 'climb'],
   [`${(props.route.maxGrade * 100).toFixed(0)}%`, 'max'],
 ]);
 </script>
@@ -51,7 +52,7 @@ const badges = computed<Array<[string, string]>>(() => [
       <li v-for="(leg, i) in legs" :key="i" class="route-leg">
         <span class="route-leg-no">{{ i + 1 }}</span>
         <span class="route-leg-name">{{ leg.circuit.name }}<span v-if="leg.toTop" class="route-leg-top"> to the top</span></span>
-        <span class="route-leg-len">{{ fmtKm(leg.length, 1) }} km</span>
+        <span class="route-leg-len">{{ fmtDist(leg.length, 1) }}</span>
         <button class="btn btn-small" :aria-label="`Remove ${leg.circuit.name} from the route`" @click="emit('remove', i)">✕</button>
       </li>
     </ol>

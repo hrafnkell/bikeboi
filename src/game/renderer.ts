@@ -88,6 +88,8 @@ export class Renderer {
   private segmentPaints = new Map<string, RiderPaint>();
   /** Draw the lap strip at the top; off for roads with nothing to show, like the warm-up. */
   strip = true;
+  /** Distance signs in miles instead of kilometres. */
+  imperial = false;
   /** Seconds left of the blackout after a jump in the road. */
   private blackout = 0;
   private confetti: Confetti[] = [];
@@ -469,7 +471,7 @@ export class Renderer {
       const h = sprite * 1.1;
       ctx.fillStyle = '#d9d9d9';
       ctx.fillRect(x - 1.5, y - h, 3, h);
-      const label = `${(inLap / 1000).toFixed(1)} km`;
+      const label = this.imperial ? `${(inLap / 1609.344).toFixed(1)} mi` : `${(inLap / 1000).toFixed(1)} km`;
       ctx.font = `600 ${Math.max(10, sprite * 0.26)}px system-ui, sans-serif`;
       const w = ctx.measureText(label).width + 10;
       ctx.fillStyle = '#1c7ed6';

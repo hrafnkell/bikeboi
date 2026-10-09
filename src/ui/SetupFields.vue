@@ -5,6 +5,7 @@ import { clamp } from '../format.ts';
 import { saveSettings } from '../state.ts';
 import type { GearMode } from '../state.ts';
 import { settingsR } from './store.ts';
+import { massToKg, massValue, unitLabels } from './units.ts';
 
 function setNumber(e: Event, key: 'riderMass' | 'bikeMass' | 'ftp', min: number, max: number) {
   const input = e.target as HTMLInputElement;
@@ -13,6 +14,19 @@ function setNumber(e: Event, key: 'riderMass' | 'bikeMass' | 'ftp', min: number,
   input.value = String(settingsR[key]);
   saveSettings();
   devices.setRiderMass(settingsR.riderMass, settingsR.bikeMass);
+}
+/** Weights are typed in the chosen unit and kept in kg. */
+function setMass(e: Event, key: 'riderMass' | 'bikeMass', min: number, max: number) {
+  const input = e.target as HTMLInputElement;
+  const v = Number(input.value);
+  if (Number.isFinite(v)) settingsR[key] = clamp(Math.round(massToKg(v)), min, max);
+  input.value = String(Math.round(massValue(settingsR[key])));
+  saveSettings();
+  devices.setRiderMass(settingsR.riderMass, settingsR.bikeMass);
+}
+function setUnits(e: Event) {
+  settingsR.units = (e.target as HTMLSelectElement).value === 'imperial' ? 'imperial' : 'metric';
+  saveSettings();
 }
 function setGearMode(e: Event) {
   settingsR.gearMode = (e.target as HTMLSelectElement).value as GearMode;
@@ -27,14 +41,21 @@ function setDifficulty(e: Event) {
 <template>
   <div class="settings">
     <label class="field">
+      <span>Units</span>
+      <select :value="settingsR.units" @change="setUnits">
+        <option value="metric">Metric (km, m, kg)</option>
+        <option value="imperial">Imperial (mi, ft, lb)</option>
+      </select>
+    </label>
+    <label class="field">
       <span>Rider weight</span>
-      <input type="number" min="30" max="200" step="1" :value="settingsR.riderMass" inputmode="numeric" @change="setNumber($event, 'riderMass', 30, 200)" />
-      <em>kg</em>
+      <input type="number" :min="Math.round(massValue(30))" :max="Math.round(massValue(200))" step="1" :value="Math.round(massValue(settingsR.riderMass))" inputmode="numeric" @change="setMass($event, 'riderMass', 30, 200)" />
+      <em>{{ unitLabels().mass }}</em>
     </label>
     <label class="field">
       <span>Bike weight</span>
-      <input type="number" min="4" max="30" step="1" :value="settingsR.bikeMass" inputmode="numeric" @change="setNumber($event, 'bikeMass', 4, 30)" />
-      <em>kg</em>
+      <input type="number" :min="Math.round(massValue(4))" :max="Math.round(massValue(30))" step="1" :value="Math.round(massValue(settingsR.bikeMass))" inputmode="numeric" @change="setMass($event, 'bikeMass', 4, 30)" />
+      <em>{{ unitLabels().mass }}</em>
     </label>
     <label class="field">
       <span>FTP</span>

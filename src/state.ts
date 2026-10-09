@@ -36,6 +36,8 @@ export interface Settings {
   gearMode: GearMode;
   /** Spin on a flat road first, and start the circuit on a button press. */
   warmup: boolean;
+  /** How distances, heights, speeds and weights are shown. */
+  units: 'metric' | 'imperial';
   /** Scales how hard gradients feel on the trainer, 0..1 (1 = true gradient). */
   difficulty: number;
   lastCircuitId: string;
@@ -60,6 +62,7 @@ export const defaultSettings: Settings = {
   ftp: 200,
   gearMode: 'model',
   warmup: false,
+  units: 'metric',
   difficulty: 1,
   lastCircuitId: 'rollers',
   route: [],
@@ -94,6 +97,7 @@ export function normalizeSettings(input: unknown): Settings {
     ftp: num(p.ftp, d.ftp, 50, 600),
     gearMode: p.gearMode === 'offset' ? 'offset' : 'model',
     warmup: p.warmup === true,
+    units: p.units === 'imperial' ? 'imperial' : 'metric',
     difficulty: num(p.difficulty, d.difficulty, 0, 1, false),
     lastCircuitId: typeof p.lastCircuitId === 'string' && /^[a-z0-9-]{1,40}$/.test(p.lastCircuitId) ? p.lastCircuitId : d.lastCircuitId,
     route: Array.isArray(p.route)

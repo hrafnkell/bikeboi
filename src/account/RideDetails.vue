@@ -10,6 +10,7 @@ import LineChart from '../ui/LineChart.vue';
 import { settings } from '../state.ts';
 import { describeError } from './session.ts';
 import { decodeTrace } from '../ride/trace.ts';
+import { altValue, fmtAlt, fmtDist, speedValue, unitLabels } from '../ui/units.ts';
 
 const props = defineProps<{ rideId: string; circuitId: string; trace?: unknown }>();
 
@@ -45,9 +46,9 @@ const profilePoints = computed(() => {
 
 const power = computed(() => (track.value ? perSecond(track.value, track.value.power, null as number | null) : []));
 const heart = computed(() => (track.value ? perSecond(track.value, track.value.heartRate, null) : []));
-const altitude = computed(() => (track.value ? perSecond(track.value, track.value.altitude, null as number | null) : []));
+const altitude = computed(() => (track.value ? perSecond(track.value, track.value.altitude.map((a) => altValue(a)), null as number | null) : []));
 const hasHeart = computed(() => heart.value.filter((h) => h !== null).length > 1);
-const speed = computed(() => (track.value ? perSecond(track.value, track.value.speed.map((v) => v * 3.6), null as number | null) : []));
+const speed = computed(() => (track.value ? perSecond(track.value, track.value.speed.map((v) => speedValue(v)), null as number | null) : []));
 const grade = computed(() => (track.value ? perSecond(track.value, track.value.grade, null as number | null) : []));
 /** A trace column spread to one-per-second like the FIT series (they share record order). */
 function traceSeries(values: Array<number | null>): Array<number | null> {
@@ -56,7 +57,7 @@ function traceSeries(values: Array<number | null>): Array<number | null> {
   return perSecond(t, values, null);
 }
 const gear = computed(() => (trace.value ? traceSeries(trace.value.gear.map((g) => (g > 0 ? g : null))) : []));
-const wheel = computed(() => (trace.value ? traceSeries(trace.value.wheelSpeed.map((v) => v * 3.6)) : []));
+const wheel = computed(() => (trace.value ? traceSeries(trace.value.wheelSpeed.map((v) => speedValue(v))) : []));
 const sent = computed(() => (trace.value ? traceSeries(trace.value.sentGrade) : []));
 const target = computed(() => (trace.value ? traceSeries(trace.value.target) : []));
 const hasTrace = computed(() => gear.value.some((g) => g !== null));
@@ -91,12 +92,12 @@ onMounted(async () => {
         <svg class="profile" viewBox="0 0 300 48" preserveAspectRatio="none" role="img" :aria-label="`Elevation profile of ${circuit.name}`">
           <polygon :points="profilePoints" />
         </svg>
-        <figcaption class="note">{{ circuit.name }} · one lap: {{ (circuit.length / 1000).toFixed(1) }} km, {{ Math.round(circuit.ascent) }} m up</figcaption>
+        <figcaption class="note">{{ circuit.name }} · one lap: {{ fmtDist(circuit.length, 1) }}, {{ fmtAlt(circuit.ascent) }} up</figcaption>
       </figure>
       <div class="charts">
         <LineChart
-          title="Elevation" unit="m" color="#199e70" :zero-based="false" :values="altitude"
-          :summary="`${Math.round(Math.min(...altitude.filter((a): a is number => a !== null)))}–${Math.round(Math.max(...altitude.filter((a): a is number => a !== null)))} m`"
+          title="Elevation" :unit="unitLabels().alt" color="#199e70" :zero-based="false" :values="altitude"
+          :summary="`${Math.round(Math.min(...altitude.filter((a): a is number => a !== null)))}–${Math.round(Math.max(...altitude.filter((a): a is number => a !== null)))} ${unitLabels().alt}`"
         />
         <LineChart
           title="Power" unit="W" color="#3987e5" :zero-based="true" :values="power" :summary="`avg ${stats(power).avg} W · max ${stats(power).max} W`"
@@ -107,8 +108,8 @@ onMounted(async () => {
         <template v-if="hasTrace">
           <LineChart title="Gear" unit="" color="#b197fc" :zero-based="false" :values="gear" :summary="`gears ${span(gear)}`" />
           <LineChart
-            title="Trainer wheel speed" unit="km/h" color="#fcc419" :zero-based="true" :values="hasWheel ? wheel : []" :summary="hasWheel ? `avg ${stats(wheel).avg} km/h` : 'not reported by the trainer'"
-            :secondary="{ title: 'Game speed', unit: 'km/h', color: '#3987e5', zeroBased: true, values: speed, summary: `avg ${stats(speed).avg} km/h` }"
+            title="Trainer wheel speed" :unit="unitLabels().speed" color="#fcc419" :zero-based="true" :values="hasWheel ? wheel : []" :summary="hasWheel ? `avg ${stats(wheel).avg} ${unitLabels().speed}` : 'not reported by the trainer'"
+            :secondary="{ title: 'Game speed', unit: unitLabels().speed, color: '#3987e5', zeroBased: true, values: speed, summary: `avg ${stats(speed).avg} ${unitLabels().speed}` }"
           />
           <LineChart
             title="Gradient sent to the trainer" unit="%" color="#ff922b" :zero-based="false" :values="sent" :summary="`${span(sent.map((v) => (v === null ? null : Math.round(v))))} %`"

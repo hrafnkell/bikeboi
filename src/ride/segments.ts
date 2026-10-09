@@ -133,8 +133,13 @@ export function sprintSegments(defs: SprintDef[], altitudeAt: (d: number) => num
   });
 }
 
-export function describeSegment(s: Segment): string {
-  const dist = s.length >= 1000 ? `${(s.length / 1000).toFixed(1)} km` : `${Math.round(s.length / 10) * 10} m`;
+/** "2.4 km at 6.8%"; `fmt` renders the distance (defaults to metric). */
+function metricShort(metres: number, step: number): string {
+  return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres / step) * step} m`;
+}
+
+export function describeSegment(s: Segment, fmt: (metres: number, step: number) => string = metricShort): string {
+  const dist = fmt(s.length, 10);
   if (s.type === 'sprint') return dist;
   return `${dist} at ${Math.abs(s.avgGrade * 100).toFixed(1)}%`;
 }

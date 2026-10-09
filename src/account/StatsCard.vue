@@ -2,7 +2,7 @@
 // The last seven days against the seven before, and everything so far.
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../api/client.ts';
-import { fmtKm } from '../format.ts';
+import { fmtAlt, fmtDist } from '../ui/units.ts';
 import { describeError } from './session.ts';
 
 interface Totals {
@@ -39,8 +39,8 @@ const rows = computed(() => {
   return [
     row('Rides', (t) => t.rides, (v) => String(v)),
     row('Time', (t) => t.durationS, hours),
-    row('Distance', (t) => t.distanceM, (v) => `${fmtKm(v, 1)} km`),
-    row('Climbed', (t) => t.ascentM, (v) => `${Math.round(v)} m`),
+    row('Distance', (t) => t.distanceM, (v) => fmtDist(v, 1)),
+    row('Climbed', (t) => t.ascentM, (v) => fmtAlt(v)),
     row('Burned', (t) => t.calories, (v) => `${Math.round(v)} kcal`),
     row('Work', (t) => t.work, (v) => `${Math.round(v / 1000)} kJ`),
   ];

@@ -103,6 +103,12 @@ const welcome = shouldWelcome();
       @resume="(c, r) => emit('resume', c, r)"
     />
     <div class="group">
+        Bikeboi is a side scrolling game for bike trainers. Connect your trainer and any accessories, pick a track or a combo of tracks and start riding.<br/>
+        Account is optional, but will keep your rides and settings between different devices.<br/>
+        Bikeboi works on phones, tablets and PCs. Chrome is preferred.
+
+    </div>
+    <div class="group">
       <section>
         <h2>Devices</h2>
         <DeviceList />
@@ -175,7 +181,7 @@ const welcome = shouldWelcome();
       Simulated power lets you try the game without a trainer. Simulated rides don’t count: no best laps or segment bests are kept, and they are not saved to your account.
     </p>
     <footer class="footer">
-      bikeboi is free software under the AGPL-3.0, built on code from
+      bikeboi is free software under the AGPL-3.0, built on bluetooth code from
       <a href="https://github.com/dvmarinoff/Auuki" target="_blank" rel="noopener">Auuki</a>.
       <a :href="SOURCE_URL" target="_blank" rel="noopener">Source code</a>
       &middot;

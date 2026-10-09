@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Summary screen after a ride.
 import { computed } from 'vue';
-import { fmtClock, fmtKm, fmtLap } from '../format.ts';
+import { fmtClock, fmtLap } from '../format.ts';
+import { fmtAlt, fmtDist, fmtShort, fmtSpeed } from './units.ts';
 import type { RideOutcome } from '../ride/outcome.ts';
 import { downloadFit } from '../ride/recorder.ts';
 import { account } from '../account/session.ts';
@@ -30,7 +31,7 @@ const pacerLine = computed(() => {
   if (!pacer) return null;
   const s = Math.abs(pacer.gap.seconds);
   const m = Math.abs(pacer.gap.metres);
-  const dist = m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`;
+  const dist = fmtShort(m);
   const time = s >= 60 ? fmtClock(s) : `${s.toFixed(1)} s`;
   const who = workout ? 'workout' : `${pacer.power} W`;
   return pacer.gap.metres > 0
@@ -44,13 +45,13 @@ const stats = computed(() => {
   const s = f.summary;
   return [
     ['Time', fmtClock(s.durationS)],
-    ['Distance', `${fmtKm(s.distanceM)} km`],
+    ['Distance', fmtDist(s.distanceM)],
     ['Avg power', `${Math.round(s.avgPower)} W`],
     ['Max power', `${Math.round(s.maxPower)} W`],
-    ['Avg speed', `${(s.avgSpeed * 3.6).toFixed(1)} km/h`],
+    ['Avg speed', fmtSpeed(s.avgSpeed)],
     ['Avg cadence', s.avgCadence > 0 ? `${Math.round(s.avgCadence)} rpm` : '--'],
     ['Avg heart rate', s.avgHeartRate > 0 ? `${Math.round(s.avgHeartRate)} bpm` : '--'],
-    ['Climbed', `${Math.round(s.ascentM)} m`],
+    ['Climbed', fmtAlt(s.ascentM)],
     ['Burned (estimate)', `${s.calories} kcal`],
   ] as Array<[string, string]>;
 });
@@ -150,7 +151,7 @@ function download() {
       <ol class="laps">
         <li v-if="outcome.warmup">
           <span>Warm-up</span>
-          <span>{{ fmtClock(outcome.warmup.seconds) }} · {{ fmtKm(outcome.warmup.metres) }} km</span>
+          <span>{{ fmtClock(outcome.warmup.seconds) }} · {{ fmtDist(outcome.warmup.metres) }}</span>
         </li>
         <li v-for="l in outcome.laps" :key="l.number" :class="l.time === bestLap ? 'best' : ''">
           <span>Lap {{ l.number }}</span>
@@ -163,7 +164,7 @@ function download() {
       <h2>Segments</h2>
       <ol class="laps">
         <li v-for="(e, i) in outcome.efforts" :key="i" :class="e.isBest && e.previousBest !== null ? 'best' : ''">
-          <span>{{ e.segment.name }}<em class="seg-desc">{{ describeSegment(e.segment) }}</em></span>
+          <span>{{ e.segment.name }}<em class="seg-desc">{{ describeSegment(e.segment, fmtShort) }}</em></span>
           <span>{{ fmtLap(e.time) }}  <em class="seg-desc">{{ versus(e) }}</em></span>
         </li>
       </ol>

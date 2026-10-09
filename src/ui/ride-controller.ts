@@ -7,7 +7,8 @@ import { devices } from '../ble/devices.ts';
 import { DEFAULT_SIM_LIMITS, MAX_CW } from '../ble/sim-sender.ts';
 import { Renderer, gradeColor, segmentColors } from '../game/renderer.ts';
 import type { OtherRider } from '../game/renderer.ts';
-import { clamp, fmtClock, fmtKm, fmtLap } from '../format.ts';
+import { clamp, fmtClock, fmtLap } from '../format.ts';
+import { altValue, distValue, fmtShort, imperial, speedValue } from './units.ts';
 import { bindKeyboard } from '../input.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { devCountSimulated, devTimeScale } from '../dev.ts';
@@ -327,7 +328,7 @@ export function createRideController(
     if (!segment) return;
     vm.segColor = segmentColors[segment.type];
     vm.segName = segment.name;
-    const metres = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.max(0, Math.round(m / 5) * 5)} m`);
+    const metres = (m: number) => fmtShort(m, 5);
     if (active) {
       vm.segLeft = `${metres(active.remaining)} to go · ${Math.round(active.fraction * 100)}%`;
       vm.segFill = `${(active.fraction * 100).toFixed(1)}%`;
@@ -343,7 +344,7 @@ export function createRideController(
     } else if (upcoming) {
       vm.segLeft = `starts in ${metres(upcoming.distanceTo)}`;
       vm.segFill = '0%';
-      vm.segTime = describeSegment(segment);
+      vm.segTime = describeSegment(segment, fmtShort);
       vm.segInfo = upcoming.best !== null ? `best ${fmtLap(upcoming.best)}` : 'no best yet';
       vm.segGap = '';
       vm.segGapSide = '';
@@ -429,10 +430,10 @@ export function createRideController(
     vm.cadenceMax = `max ${peak.cadence > 0 ? Math.round(peak.cadence) : '--'}`;
     vm.heartMax = `max ${peak.heartRate > 0 ? Math.round(peak.heartRate) : '--'}`;
     if (warmingUp) {
-      vm.speed = (warmSim.speed * 3.6).toFixed(1);
+      vm.speed = speedValue(warmSim.speed).toFixed(1);
       vm.grade = '0.0';
       vm.gradeColor = gradeColor(0);
-      vm.dist = fmtKm(warmSim.distance);
+      vm.dist = distValue(warmSim.distance).toFixed(2);
       vm.kcal = String(Math.round(kcalFromJoules(warmSim.work)));
       vm.climb = '0';
       vm.lapNo = 'Warm-up';
@@ -445,13 +446,13 @@ export function createRideController(
       renderGear();
       return;
     }
-    vm.speed = (sim.speed * 3.6).toFixed(1);
+    vm.speed = speedValue(sim.speed).toFixed(1);
     const g = sim.grade;
     vm.grade = (g * 100).toFixed(1);
     vm.gradeColor = gradeColor(g);
-    vm.dist = fmtKm(totalDistance());
+    vm.dist = distValue(totalDistance()).toFixed(2);
     vm.kcal = String(Math.round(kcalFromJoules(totalWork())));
-    vm.climb = String(Math.round(sim.ascent));
+    vm.climb = String(Math.round(altValue(sim.ascent)));
     vm.lapNo = `Lap ${sim.lapIndex + 1}`;
     vm.lapTime = fmtLap(sim.lapTime);
     vm.elapsed = fmtClock(totalTime());
@@ -479,11 +480,11 @@ export function createRideController(
       let catching = '';
       if (behind && gapRate < -0.2) catching = ` \u00B7 catch in ${fmtClock(Math.ceil(gap.metres / -gapRate))}`;
       else if (!behind && gapRate > 0.2) catching = ` \u00B7 caught in ${fmtClock(Math.ceil(metres / gapRate))}`;
-      vm.pacerMetres = `${metres >= 1000 ? `${(metres / 1000).toFixed(2)} km` : `${Math.round(metres)} m`} ${behind ? 'ahead of you' : 'behind you'}${catching}`;
+      vm.pacerMetres = `${fmtShort(metres)} ${behind ? 'ahead of you' : 'behind you'}${catching}`;
       if (started) {
         if (behind && gap.metres >= nudgedAt + 100 && gapRate > 0) {
           nudgedAt = Math.floor(gap.metres / 100) * 100;
-          showToast(`Pacer is ${nudgedAt} m up the road \u2014 time to dig in`);
+          showToast(`Pacer is ${fmtShort(nudgedAt)} up the road \u2014 time to dig in`);
         }
         if (!behind) nudgedAt = 0;
       }
@@ -636,6 +637,7 @@ export function createRideController(
     if (canvasEl) {
       renderer?.destroy();
       renderer = new Renderer(canvasEl, circuit, settings.scene === 'auto' ? circuit.scene : settings.scene, settings.rider);
+      renderer.imperial = imperial();
     }
     vm.bannerGone = false;
     pushControl(true);
@@ -778,6 +780,7 @@ export function createRideController(
     const road = warmingUp ? warmupRoad : circuit;
     renderer = new Renderer(canvas, road, settings.scene === 'auto' ? circuit.scene : settings.scene, settings.rider);
     renderer.strip = !warmingUp;
+    renderer.imperial = imperial();
 
     offShift = bus.on('shift', (dir) => {
       if (paused) return;

@@ -7,6 +7,7 @@ import type { RideOutcome } from '../ride/outcome.ts';
 import type { SavedRide } from '../ride/ride-store.ts';
 import MetricCard from './MetricCard.vue';
 import { createRideController } from './ride-controller.ts';
+import { unitLabels } from './units.ts';
 
 const props = defineProps<{ circuit: Circuit; resume: SavedRide | null }>();
 const emit = defineEmits<{ end: [outcome: RideOutcome] }>();
@@ -48,10 +49,10 @@ onBeforeUnmount(() => {
       <MetricCard label="Burned" unit="kcal" :value="vm.kcal" />
     </div>
     <div class="hud hud-right">
-      <MetricCard label="Speed" unit="km/h" :value="vm.speed" big />
+      <MetricCard label="Speed" :unit="unitLabels().speed" :value="vm.speed" big />
       <MetricCard label="Grade" unit="%" :value="vm.grade" :color="vm.gradeColor" />
-      <MetricCard label="Dist" unit="km" :value="vm.dist" />
-      <MetricCard label="Climbed" unit="m" :value="vm.climb" />
+      <MetricCard label="Dist" :unit="unitLabels().dist" :value="vm.dist" />
+      <MetricCard label="Climbed" :unit="unitLabels().alt" :value="vm.climb" />
     </div>
 
     <div ref="lapbox" class="lapbox">

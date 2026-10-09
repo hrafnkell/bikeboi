@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Offers to resume, save or discard a ride that was interrupted.
 import { onMounted, ref, shallowRef } from 'vue';
-import { fmtClock, fmtKm } from '../format.ts';
+import { fmtClock } from '../format.ts';
+import { fmtDist } from './units.ts';
 import type { Circuit } from '../ride/circuit.ts';
 import { lookupCircuit } from '../ride/circuits/index.ts';
 import {
@@ -24,7 +25,7 @@ onMounted(() => {
     const s = summarize(found);
     const c = lookupCircuit(found.meta.circuitId);
     message.value =
-      `An unfinished ride on ${found.meta.circuitName} was found: ${fmtClock(s.durationS)}, ${fmtKm(s.distanceM)} km. ` +
+      `An unfinished ride on ${found.meta.circuitName} was found: ${fmtClock(s.durationS)}, ${fmtDist(s.distanceM)}. ` +
       `${c ? 'You can pick it up where it stopped, or save what was recorded.' : 'You can save what was recorded.'} Starting a new ride replaces it.`;
     circuit.value = c;
     ride.value = found;
