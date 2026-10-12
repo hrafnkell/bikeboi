@@ -54,25 +54,47 @@ function clampGrade(grade: number, minGrade: number, maxGrade: number): SimGrade
   return { grade, saturated: 0 };
 }
 
-/** Wheel speed the trainer sees at this cadence, assuming the bike is in the reference gear. */
-export function trainerSpeedFor(cadence: number, reference = REFERENCE_GEAR): number {
-  return (Math.max(0, cadence) / 60) * GEAR_RATIOS[clampGear(reference)] * WHEEL_CIRCUMFERENCE;
+/** Wheel speed the trainer sees at this cadence in a given physical ratio (default: the reference gear). */
+export function trainerSpeedFor(cadence: number, ratio = GEAR_RATIOS[REFERENCE_GEAR]): number {
+  return (Math.max(0, cadence) / 60) * ratio * WHEEL_CIRCUMFERENCE;
+}
+
+/** The physical gear the bike is in, from the trainer's wheel speed and the cadence; null when either is missing. */
+export function physicalRatio(wheelSpeed: number, cadence: number): number | null {
+  if (!(wheelSpeed > 1) || !(cadence > 30)) return null;
+  const ratio = wheelSpeed / ((cadence / 60) * WHEEL_CIRCUMFERENCE);
+  return ratio >= 0.8 && ratio <= 7 ? ratio : null;
+}
+
+/** Keeps a smoothed estimate of the physical ratio, starting from the reference gear. */
+export class RatioEstimator {
+  ratio = GEAR_RATIOS[REFERENCE_GEAR];
+  private samples = 0;
+  /** Feed a reading; returns the current estimate. */
+  update(wheelSpeed: number, cadence: number): number {
+    const r = physicalRatio(wheelSpeed, cadence);
+    if (r !== null) {
+      // the first readings replace the assumption quickly, later ones nudge it
+      const weight = this.samples < 5 ? 0.5 : 0.08;
+      this.ratio += (r - this.ratio) * weight;
+      this.samples++;
+    }
+    return this.ratio;
+  }
 }
 
 export interface GearedInput {
   /** True course gradient, fraction. */
   courseGrade: number;
-  /** Selected ratio / reference ratio. */
+  /** Selected ratio / the physical ratio the bike is in. */
   k: number;
-  /** Wheel speed the trainer is measuring, m/s (see trainerSpeedFor). */
+  /** Wheel speed the trainer is measuring (or, failing that, cadence x physical ratio), m/s. */
   trainerSpeed: number;
   /** Rider + bike, kg. */
   mass: number;
   crr: number;
   /** 0.5 * rho * CdA, kg/m. */
   cw: number;
-  /** Largest wind resistance coefficient the trainer accepts, kg/m. */
-  maxCw: number;
   /** Scales how much of the course gradient is felt, 0..1. */
   difficulty: number;
   minGrade: number;
@@ -80,24 +102,21 @@ export interface GearedInput {
 }
 
 /**
- * Model-based rule. The bike on the trainer is in the reference gear, so the trainer's
- * wheel speed is v_t = cadence x reference gear. In virtual gear k the same cadence would
- * move a real bike at k v_t, against k times the force at the pedals (gearing). So the
- * trainer must produce
- *   F = k (m g (G + crr) + cw (k v_t)^2) = m g (kG + k crr) + k^3 cw v_t^2
- * which maps straight onto the three simulation parameters: grade kG, crr k crr and wind
- * resistance k^3 cw. The trainer then reacts to cadence on its own, instantly, instead of
- * waiting for the game's speed to catch up (which left descents with no resistance at all).
- * What does not fit in the wind resistance field goes into the gradient using the
- * estimated wheel speed.
+ * Model-based rule. The bike is in physical ratio r, so the trainer's wheel speed is
+ * v_t = cadence x r. In virtual gear with ratio k r the same cadence would move a real bike
+ * at k v_t, against k times the force at the pedals (gearing). So the trainer must produce
+ *   F = k (m g (G + crr) + cw (k v_t)^2)
+ * All of it goes through the gradient field: trainers honour the gradient but not reliably
+ * the wind resistance coefficient (a JetBlack Victory applied 13 % of it), so the aero part
+ * is computed here from the measured wheel speed and sent as gradient, with the wind
+ * resistance field set to zero and the rolling resistance field left at the default.
  */
 export function gearedSimGrade(i: GearedInput): SimControl {
   const k = Math.max(0.05, i.k);
   const G = i.courseGrade * i.difficulty;
-  const cw = Math.min(i.maxCw, k * k * k * i.cw);
-  const residual = (k * k * k * i.cw - cw) * i.trainerSpeed * i.trainerSpeed;
-  const grade = clampGrade(k * G + residual / (i.mass * G0), i.minGrade, i.maxGrade);
-  return { ...grade, crr: k * i.crr, cw };
+  const aero = (k * k * k * i.cw * i.trainerSpeed * i.trainerSpeed) / (i.mass * G0);
+  const grade = clampGrade(k * (G + i.crr) - i.crr + aero, i.minGrade, i.maxGrade);
+  return { ...grade, crr: i.crr, cw: 0 };
 }
 
 export interface OffsetInput {

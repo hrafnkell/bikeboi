@@ -4,7 +4,7 @@
 
 import { markRaw, shallowReactive } from 'vue';
 import { devices } from '../ble/devices.ts';
-import { DEFAULT_SIM_LIMITS, MAX_CW } from '../ble/sim-sender.ts';
+import { DEFAULT_SIM_LIMITS } from '../ble/sim-sender.ts';
 import { Renderer, gradeColor, segmentColors } from '../game/renderer.ts';
 import type { OtherRider } from '../game/renderer.ts';
 import { clamp, fmtClock, fmtLap } from '../format.ts';
@@ -14,7 +14,7 @@ import type { Circuit } from '../ride/circuit.ts';
 import { devCountSimulated, devTimeScale } from '../dev.ts';
 import { kcalFromJoules } from '../ride/energy.ts';
 import {
-  GEAR_COUNT, REFERENCE_GEAR, cadenceFor, clampGear, gearFactor, gearedSimGrade, offsetSimGrade, trainerSpeedFor,
+  GEAR_COUNT, GEAR_RATIOS, REFERENCE_GEAR, RatioEstimator, cadenceFor, clampGear, gearedSimGrade, offsetSimGrade, trainerSpeedFor,
 } from '../ride/gears.ts';
 import { TraceRecorder, gapSeconds, ghostLapDistance, loadGhost, saveGhost } from '../ride/ghost.ts';
 import { powerZone } from '../ride/zones.ts';
@@ -351,16 +351,22 @@ export function createRideController(
     }
   }
 
+  // which physical gear the bike is in, learnt from wheel speed and cadence as the ride goes
+  const physical = new RatioEstimator();
+
   function pushSim(force: boolean) {
     const limits = DEFAULT_SIM_LIMITS;
+    if (!simulated) physical.update(live.wheelSpeed, live.cadence);
     const target = settings.gearMode === 'offset'
       ? offsetSimGrade({
         courseGrade: cur().grade, gearIndex: gear, neutralIndex: REFERENCE_GEAR, stepGrade: OFFSET_STEP,
         crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
       })
       : gearedSimGrade({
-        courseGrade: cur().grade, k: gearFactor(gear), trainerSpeed: trainerSpeedFor(live.cadence), mass: totalMass(),
-        crr: CRR, cw: CW, maxCw: MAX_CW, difficulty: settings.difficulty, ...limits,
+        // the virtual gear is measured against the gear the bike is actually in
+        courseGrade: cur().grade, k: GEAR_RATIOS[gear] / physical.ratio,
+        trainerSpeed: live.wheelSpeed > 0 ? live.wheelSpeed : trainerSpeedFor(live.cadence, physical.ratio),
+        mass: totalMass(), crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
       });
     saturated = target.saturated;
     const now = performance.now();

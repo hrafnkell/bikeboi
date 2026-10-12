@@ -1,13 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  GEAR_COUNT, GEAR_RATIOS, REFERENCE_GEAR, WHEEL_CIRCUMFERENCE, cadenceFor, clampGear, gearFactor,
-  gearedSimGrade, offsetSimGrade, trainerSpeedFor,
+  GEAR_COUNT, GEAR_RATIOS, REFERENCE_GEAR, RatioEstimator, WHEEL_CIRCUMFERENCE, cadenceFor, clampGear, gearFactor,
+  gearedSimGrade, offsetSimGrade, physicalRatio, trainerSpeedFor,
 } from '../src/ride/gears.ts';
-import { MAX_CW } from '../src/ble/sim-sender.ts';
 import { CRR, CW, G0 } from '../src/types.ts';
 
 const base = {
-  courseGrade: 0.03, k: 1, trainerSpeed: 6, mass: 84, crr: CRR, cw: CW, maxCw: MAX_CW,
+  courseGrade: 0.03, k: 1, trainerSpeed: 6, mass: 84, crr: CRR, cw: CW,
   difficulty: 1, minGrade: -0.1, maxGrade: 0.2,
 };
 
@@ -31,14 +30,15 @@ describe('gears', () => {
     expect(clampGear(99)).toBe(GEAR_COUNT - 1);
   });
 
-  test('reference gear sends the road as it is', () => {
+  test('in the physical gear itself the road is sent as it is, plus the aero the trainer will not do', () => {
     for (const G of [-0.05, 0, 0.03, 0.08]) {
       const r = gearedSimGrade({ ...base, courseGrade: G });
-      expect(r.grade).toBeCloseTo(G, 10);
+      expect(r.grade).toBeCloseTo(G + (CW * 36) / (base.mass * G0), 10);
       expect(r.crr).toBeCloseTo(CRR, 10);
-      expect(r.cw).toBeCloseTo(CW, 10);
+      expect(r.cw).toBe(0);
       expect(r.saturated).toBe(0);
     }
+    expect(gearedSimGrade({ ...base, courseGrade: 0.03, trainerSpeed: 0 }).grade).toBeCloseTo(0.03, 10);
   });
 
   test('matches the gearing it was derived from, in every gear', () => {
@@ -60,8 +60,9 @@ describe('gears', () => {
     const p = gearedSimGrade({ ...base, courseGrade: -0.024, k, trainerSpeed: vt });
     expect(p.saturated).toBe(0);
     expect(trainerForce(p, vt) * vt).toBeGreaterThan(180); // watts
-    // and does not depend on how fast the avatar happens to be going
-    expect(p.cw).toBeGreaterThan(1);
+    // the aero part is in the gradient, where the trainer will actually apply it
+    expect(p.grade).toBeGreaterThan(0);
+    expect(p.cw).toBe(0);
   });
 
   test('harder gears always feel harder at the same cadence', () => {
@@ -81,16 +82,30 @@ describe('gears', () => {
     }
   });
 
-  test('wind resistance beyond what the trainer accepts moves into the gradient', () => {
-    const k = gearFactor(GEAR_COUNT - 1);
-    expect(k * k * k * CW).toBeGreaterThan(MAX_CW);
-    const slow = gearedSimGrade({ ...base, courseGrade: 0, k, trainerSpeed: 2 });
-    const fast = gearedSimGrade({ ...base, courseGrade: 0, k, trainerSpeed: 8 });
-    expect(slow.cw).toBe(MAX_CW);
-    expect(fast.grade).toBeGreaterThan(slow.grade);
-    const plenty = gearedSimGrade({ ...base, courseGrade: 0, k, trainerSpeed: 8, maxCw: 9 });
-    expect(plenty.cw).toBeCloseTo(k * k * k * CW, 10);
-    expect(plenty.grade).toBeCloseTo(0, 10);
+  test('the physical gear is read from wheel speed and cadence', () => {
+    // 84 rpm at 35.2 km/h was a 50/15-ish 3.3, not the 2.4 we used to assume
+    expect(physicalRatio(35.2 / 3.6, 84)).toBeCloseTo(3.32, 1);
+    expect(physicalRatio(0, 84)).toBeNull();
+    expect(physicalRatio(9, 10)).toBeNull();
+    expect(physicalRatio(50, 60)).toBeNull(); // nonsense ratio
+    const est = new RatioEstimator();
+    expect(est.ratio).toBe(2.4);
+    for (let i = 0; i < 6; i++) est.update(9.78, 84);
+    expect(est.ratio).toBeCloseTo(3.32, 1);
+    est.update(0, 0); // nothing from a stopped wheel
+    expect(est.ratio).toBeCloseTo(3.32, 1);
+  });
+
+  test('a bigger physical gear makes the same virtual gear lighter per unit of wheel speed, so the feel is unchanged', () => {
+    // same virtual ratio, same cadence: the pedal force must come out the same whatever the chainring
+    const virtual = 2.4;
+    const G = 0.03;
+    const forceAtPedal = (physical: number) => {
+      const vt = trainerSpeedFor(85, physical);
+      const p = gearedSimGrade({ ...base, courseGrade: G, k: virtual / physical, trainerSpeed: vt, minGrade: -9, maxGrade: 9 });
+      return trainerForce(p, vt) * physical; // pedal torque ~ wheel force x ratio
+    };
+    expect(forceAtPedal(3.3)).toBeCloseTo(forceAtPedal(2.4), 3);
   });
 
   test('clamps and reports saturation', () => {
@@ -99,7 +114,7 @@ describe('gears', () => {
   });
 
   test('difficulty scales only the course gradient', () => {
-    const half = gearedSimGrade({ ...base, courseGrade: 0.06, difficulty: 0.5 });
+    const half = gearedSimGrade({ ...base, courseGrade: 0.06, difficulty: 0.5, trainerSpeed: 0 });
     expect(half.grade).toBeCloseTo(0.03, 10);
   });
 
