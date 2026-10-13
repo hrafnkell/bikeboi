@@ -55,6 +55,7 @@ interface Confetti {
   color: string;
   /** Seconds left. */
   life: number;
+  shape: 'rect' | 'strip' | 'dot' | 'star';
 }
 
 export const segmentColors = { climb: '#ffa94d', descent: '#74c0fc', sprint: '#b197fc' } as const;
@@ -93,6 +94,12 @@ export class Renderer {
   /** Seconds left of the blackout after a jump in the road. */
   private blackout = 0;
   private confetti: Confetti[] = [];
+  /** Bursts still to fire and the delay before the next, so a celebration pops a few times. */
+  private bursts = 0;
+  private burstIn = 0;
+  /** Where the rider was drawn last frame, so a burst can go off just ahead of the bike. */
+  private riderAt = { x: 0, y: 0, sprite: 40 };
+  private flashes: Array<{ x: number; y: number; life: number }> = [];
   private palette: Palette;
   private style: SceneStyle;
   private clock = 0;
@@ -180,9 +187,18 @@ export class Renderer {
       }
     });
     this.drawRider(cam, scene.distance, sprite, this.crankAngle, this.wheelAngle, null);
+    this.riderAt = { x: cam.anchorX, y: toScreenY(cam, circuit.altitudeAt(scene.distance)), sprite };
     if (this.style.rain) this.drawRain(scene.speed);
     if (this.strip) this.drawProfile(scene);
-    if (this.confetti.length) this.drawConfetti(scene.dt);
+    if (this.bursts > 0) {
+      this.burstIn -= scene.dt;
+      if (this.burstIn <= 0) {
+        this.burst();
+        this.bursts--;
+        this.burstIn = 0.22;
+      }
+    }
+    if (this.confetti.length || this.flashes.length) this.drawConfetti(scene.dt);
     if (this.blackout > 0) {
       this.blackout = Math.max(0, this.blackout - scene.dt);
       ctx.fillStyle = `rgba(0,0,0,${Math.min(1, this.blackout / CUT_SECONDS * 1.6).toFixed(3)})`;
@@ -734,43 +750,104 @@ export class Renderer {
     dot(scene.distance, '#ffffff', 4.5);
   }
 
-  /** A burst of confetti from the top of the stage, for a new best. */
+  /** Confetti for a new best: three poppers go off on the road just ahead of the bike. */
   celebrate(): void {
-    const { width, height } = this.viewport;
-    for (let i = 0; i < 140; i++) {
+    this.bursts = 3;
+    this.burstIn = 0;
+  }
+
+  /** One popper: a fountain of pieces fired up and forward from ahead of the rider, which then rain down. */
+  private burst(): void {
+    const { x, y, sprite } = this.riderAt;
+    const { height } = this.viewport;
+    const ox = x + sprite * (1.2 + Math.random() * 1.2);
+    const oy = y - sprite * 0.2;
+    const speed = height * 1.7;
+    this.flashes.push({ x: ox, y: oy, life: 0.35 });
+    const shapes: Confetti['shape'][] = ['rect', 'rect', 'strip', 'dot', 'star'];
+    for (let i = 0; i < 90; i++) {
+      // mostly straight up, fanned out, with a little forward lean
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.1 + 0.12;
+      const v = speed * (0.5 + Math.random() * 0.6);
+      const shape = shapes[i % shapes.length];
       this.confetti.push({
-        x: width * (0.2 + Math.random() * 0.6),
-        y: -10 - Math.random() * height * 0.2,
-        vx: (Math.random() - 0.5) * width * 0.25,
-        vy: height * (0.15 + Math.random() * 0.25),
-        spin: (Math.random() - 0.5) * 12,
-        angle: Math.random() * Math.PI,
-        w: 5 + Math.random() * 5,
-        h: 3 + Math.random() * 4,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        life: 2.2 + Math.random() * 1.2,
+        x: ox + (Math.random() - 0.5) * sprite * 0.3,
+        y: oy,
+        vx: Math.cos(angle) * v,
+        vy: Math.sin(angle) * v,
+        spin: (Math.random() - 0.5) * 16,
+        angle: Math.random() * Math.PI * 2,
+        w: shape === 'strip' ? 3 + Math.random() * 2 : 5 + Math.random() * 6,
+        h: shape === 'strip' ? 14 + Math.random() * 12 : 4 + Math.random() * 5,
+        color: CONFETTI_COLORS[(i * 7 + Math.floor(Math.random() * 3)) % CONFETTI_COLORS.length],
+        life: 2.4 + Math.random() * 1.4,
+        shape,
       });
     }
   }
 
   private drawConfetti(dt: number): void {
     const { ctx, viewport } = this;
-    const g = viewport.height * 0.35;
+    const g = viewport.height * 1.3;
+    // the pop: a white ring that grows and fades at each popper's mouth
+    this.flashes = this.flashes.filter((f) => (f.life -= dt) > 0);
+    for (const f of this.flashes) {
+      const t = 1 - f.life / 0.35;
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.9;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3 * (1 - t) + 1;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, 6 + t * this.riderAt.sprite * 1.2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = (1 - t) * 0.5;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, (1 - t) * this.riderAt.sprite * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     const kept: Confetti[] = [];
     for (const c of this.confetti) {
       c.life -= dt;
       if (c.life <= 0 || c.y > viewport.height + 20) continue;
+      // gravity, air drag, and a flutter once the piece is falling
       c.vy += g * dt;
-      c.vx *= 1 - Math.min(1, dt * 1.5);
-      c.x += c.vx * dt + Math.sin(c.angle * 3) * 20 * dt;
+      const drag = 1 - Math.min(1, dt * 1.2);
+      c.vx *= drag;
+      // light pieces stop accelerating once they fall: they drift down
+      c.vy *= c.vy > 0 ? 1 - Math.min(1, dt * 2.8) : 1 - Math.min(1, dt * 0.6);
+      if (c.vy > 0) c.x += Math.sin(c.angle * 2 + c.life * 5) * 40 * dt;
+      c.x += c.vx * dt;
       c.y += c.vy * dt;
       c.angle += c.spin * dt;
       ctx.save();
-      ctx.globalAlpha = Math.min(1, c.life);
+      ctx.globalAlpha = Math.min(1, c.life * 1.5);
       ctx.translate(c.x, c.y);
       ctx.rotate(c.angle);
       ctx.fillStyle = c.color;
-      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h * Math.abs(Math.cos(c.angle * 2)) + 1);
+      const flip = Math.abs(Math.cos(c.angle * 2));
+      if (c.shape === 'dot') {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, c.w / 2, (c.w / 2) * (0.3 + flip * 0.7), 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (c.shape === 'star') {
+        ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const r = k % 2 === 0 ? c.w * 0.6 : c.w * 0.25;
+          const a = (k / 10) * Math.PI * 2;
+          ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r * (0.4 + flip * 0.6));
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha *= 0.6;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(0, 0, c.w * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h * (0.25 + flip * 0.75));
+      }
       ctx.restore();
       kept.push(c);
     }
