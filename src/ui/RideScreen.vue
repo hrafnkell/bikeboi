@@ -15,6 +15,20 @@ const emit = defineEmits<{ end: [outcome: RideOutcome] }>();
 const ctrl = createRideController(props.circuit, props.resume, (outcome) => emit('end', outcome));
 const vm = ctrl.vm;
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas');
+
+// tap or drag along the pips to jump gears
+let pointerDown = false;
+function pickGear(e: PointerEvent) {
+  if (e.type === 'pointerdown') {
+    pointerDown = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  } else if (!pointerDown) {
+    return;
+  }
+  const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const fraction = (e.clientX - box.left) / box.width;
+  ctrl.selectGear(Math.round(fraction * (GEAR_COUNT - 1)));
+}
 const root = useTemplateRef<HTMLElement>('root');
 const lapbox = useTemplateRef<HTMLElement>('lapbox');
 
@@ -98,7 +112,10 @@ onBeforeUnmount(() => {
           <span class="gear-no">{{ vm.gearNo }}</span>
           <span class="gear-flag">{{ vm.gearFlag }}</span>
         </div>
-        <div class="pips">
+        <div
+          class="pips" role="slider" :aria-label="vm.gearLabel" :aria-valuemin="1" :aria-valuemax="GEAR_COUNT" :aria-valuenow="vm.pipsLit + 1"
+          @pointerdown="pickGear" @pointermove="pickGear" @pointerup="pointerDown = false" @pointercancel="pointerDown = false"
+        >
           <i v-for="i in GEAR_COUNT" :key="i" class="pip" :class="{ on: i - 1 <= vm.pipsLit }"></i>
         </div>
       </div>

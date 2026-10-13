@@ -355,6 +355,7 @@ a { color: var(--accent); }
 .metric-target:empty { display: none; }
 .metric-target.on { color: var(--good); }
 .metric-big .metric-value { font-size: 2.3rem; }
+.hud-left .metric-big { min-width: 190px; }
 .hud-right .metric { text-align: right; justify-content: flex-end; }
 
 .lapbox {
@@ -405,7 +406,7 @@ a { color: var(--accent); }
 .gear-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .gear-no { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
 .gear-flag { font-size: 0.7rem; color: var(--bad); text-transform: uppercase; }
-.pips { display: flex; gap: 2px; margin-top: 4px; }
+.pips { display: flex; gap: 2px; margin-top: 4px; padding: 8px 0 6px; margin-bottom: -6px; cursor: pointer; touch-action: none; }
 .pip { flex: 1; height: 6px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); }
 .pip.on { background: var(--accent); }
 

@@ -110,6 +110,8 @@ export interface RideController {
   startRide(): void;
   setSimPower(watts: number): void;
   shift(dir: 1 | -1): void;
+  /** Jump straight to a gear (0-based), or in hard mode to the matching intensity. */
+  selectGear(index: number): void;
   toggleFullscreen(): void;
   end(): Promise<void>;
   /** Stop everything; safe to call more than once. */
@@ -149,6 +151,9 @@ export function createRideController(
   let lastSent = NaN;
   let saturated: -1 | 0 | 1 = 0;
   const peak = { power: 0, cadence: 0, heartRate: 0 };
+  // running average of the recorded power, one reading per second like the file
+  let powerSum = 0;
+  let powerCount = 0;
   // the finish estimate uses a steadier power than the instant reading, and is refreshed once a second
   let steadyPower = 0;
   let estimate = { at: -1, value: 0 };
@@ -432,7 +437,7 @@ export function createRideController(
     vm.power = String(Math.round(shownPower / 5) * 5);
     vm.cadence = String(Math.round(live.cadence));
     vm.heart = live.heartRate > 0 ? String(Math.round(live.heartRate)) : '--';
-    vm.powerMax = `max ${peak.power > 0 ? Math.round(peak.power) : '--'}`;
+    vm.powerMax = `avg ${powerCount > 0 ? Math.round(powerSum / powerCount) : '--'} · max ${peak.power > 0 ? Math.round(peak.power) : '--'}`;
     vm.cadenceMax = `max ${peak.cadence > 0 ? Math.round(peak.cadence) : '--'}`;
     vm.heartMax = `max ${peak.heartRate > 0 ? Math.round(peak.heartRate) : '--'}`;
     if (warmingUp) {
@@ -510,6 +515,8 @@ export function createRideController(
     let ts = Math.round(nowMs() / 1000) * 1000;
     if (ts <= lastSampleTs) ts = lastSampleTs + 1000;
     lastSampleTs = ts;
+    powerSum += Math.max(0, live.power);
+    powerCount++;
     recorder.addSample({
       timestamp: ts,
       power: Math.round(live.power),
@@ -651,6 +658,23 @@ export function createRideController(
     showToast(warmSim.speed > 0 ? 'Go!' : 'Start pedalling');
   }
 
+  /** Tap or drag on the gear pips: straight to that gear (or that intensity in hard mode). */
+  function selectGear(index: number) {
+    if (paused || ended) return;
+    if (ergTarget() !== null) {
+      const next = clamp(Math.round((0.5 + (clampGear(index) / (GEAR_COUNT - 1)) * 1) * 20) / 20, 0.5, 1.5);
+      if (next === intensity) return;
+      intensity = next;
+    } else {
+      const next = clampGear(index);
+      if (next === gear) return;
+      gear = next;
+    }
+    navigator.vibrate?.(8);
+    pushControl(true);
+    updateHud();
+  }
+
   function setPaused(value: boolean) {
     if (ended || paused === value) return;
     paused = value;
@@ -765,6 +789,8 @@ export function createRideController(
     clockOffset = Math.max(0, state.lastSampleTs + 1000 - Date.now());
     virtualNow = Date.now() + clockOffset;
     Object.assign(peak, state.peak);
+    powerSum = state.work;
+    powerCount = resume.samples.length;
     for (const [t, d] of state.lapTrace) trace.sample(t, d);
     // list the segments already ridden, without announcing them or touching the bests
     segments.replaying = true;
@@ -839,6 +865,7 @@ export function createRideController(
     startRide,
     setSimPower,
     shift: (dir) => bus.emit('shift', dir),
+    selectGear,
     toggleFullscreen,
     end,
     dispose() {
