@@ -1,6 +1,7 @@
 // Live rider metrics and persisted settings.
 
 import { changes } from './changes.ts';
+import { GEAR_HIGH_RANGE, GEAR_LOW_RANGE, GEAR_SPAN } from './ride/gears.ts';
 import { createEmitter } from './emitter.ts';
 export type { Emitter, Unsubscribe } from './emitter.ts';
 
@@ -34,6 +35,9 @@ export interface Settings {
   bikeMass: number; // kg
   ftp: number; // W
   gearMode: GearMode;
+  /** The lightest and hardest virtual gear, as real ratios; the 20 gears are spread evenly between. */
+  gearLow: number;
+  gearHigh: number;
   /** Spin on a flat road first, and start the circuit on a button press. */
   warmup: boolean;
   /** How distances, heights, speeds and weights are shown. */
@@ -61,6 +65,8 @@ export const defaultSettings: Settings = {
   bikeMass: 9,
   ftp: 200,
   gearMode: 'model',
+  gearLow: GEAR_SPAN.low,
+  gearHigh: GEAR_SPAN.high,
   warmup: false,
   units: 'metric',
   difficulty: 1,
@@ -96,6 +102,8 @@ export function normalizeSettings(input: unknown): Settings {
     bikeMass: num(p.bikeMass, d.bikeMass, 4, 30),
     ftp: num(p.ftp, d.ftp, 50, 600),
     gearMode: p.gearMode === 'offset' ? 'offset' : 'model',
+    gearLow: Math.round(num(p.gearLow, d.gearLow, GEAR_LOW_RANGE.min, GEAR_LOW_RANGE.max, false) * 100) / 100,
+    gearHigh: Math.round(num(p.gearHigh, d.gearHigh, GEAR_HIGH_RANGE.min, GEAR_HIGH_RANGE.max, false) * 100) / 100,
     warmup: p.warmup === true,
     units: p.units === 'imperial' ? 'imperial' : 'metric',
     difficulty: num(p.difficulty, d.difficulty, 0, 1, false),

@@ -14,7 +14,7 @@ import type { Circuit } from '../ride/circuit.ts';
 import { devCountSimulated, devTimeScale } from '../dev.ts';
 import { kcalFromJoules } from '../ride/energy.ts';
 import {
-  GEAR_COUNT, GEAR_RATIOS, REFERENCE_GEAR, RatioEstimator, cadenceFor, clampGear, gearedSimGrade, offsetSimGrade, trainerSpeedFor,
+  GEAR_COUNT, RatioEstimator, buildGears, cadenceFor, clampGear, gearedSimGrade, offsetSimGrade, startGear, trainerSpeedFor,
 } from '../ride/gears.ts';
 import { TraceRecorder, gapSeconds, ghostLapDistance, loadGhost, saveGhost } from '../ride/ghost.ts';
 import { powerZone } from '../ride/zones.ts';
@@ -132,7 +132,10 @@ export function createRideController(
   const trace = new TraceRecorder();
   let ghost = loadGhost(circuit.id);
 
-  let gear = REFERENCE_GEAR;
+  // the rider's own gear table and the gear a ride starts in
+  const ratios = buildGears(settings.gearLow, settings.gearHigh);
+  const neutralGear = startGear(ratios);
+  let gear = neutralGear;
   let paused = false;
   let started = false;
   // a warm-up is a flat ride before the circuit: recorded as part of the ride, but no laps,
@@ -364,12 +367,12 @@ export function createRideController(
     if (!simulated) physical.update(live.wheelSpeed, live.cadence);
     const target = settings.gearMode === 'offset'
       ? offsetSimGrade({
-        courseGrade: cur().grade, gearIndex: gear, neutralIndex: REFERENCE_GEAR, stepGrade: OFFSET_STEP,
+        courseGrade: cur().grade, gearIndex: gear, neutralIndex: neutralGear, stepGrade: OFFSET_STEP,
         crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
       })
       : gearedSimGrade({
         // the virtual gear is measured against the gear the bike is actually in
-        courseGrade: cur().grade, k: GEAR_RATIOS[gear] / physical.ratio,
+        courseGrade: cur().grade, k: ratios[gear] / physical.ratio,
         trainerSpeed: live.wheelSpeed > 0 ? live.wheelSpeed : trainerSpeedFor(live.cadence, physical.ratio),
         mass: totalMass(), crr: CRR, cw: CW, difficulty: settings.difficulty, ...limits,
       });
@@ -586,7 +589,7 @@ export function createRideController(
         vm.simDisabled = forced !== null;
         simPowerNow += (simPower - simPowerNow) * Math.min(1, dt * 4);
         live.power = simPowerNow < 1 ? 0 : Math.round(simPowerNow);
-        live.cadence = live.power > 0 ? clamp(cadenceFor(cur().speed, gear), 0, 150) : 0;
+        live.cadence = live.power > 0 ? clamp(cadenceFor(cur().speed, gear, ratios), 0, 150) : 0;
       }
       for (let i = 0; i < timeScale; i++) {
         if (cur().advance(dt, live.power) > 0) afterSteps();

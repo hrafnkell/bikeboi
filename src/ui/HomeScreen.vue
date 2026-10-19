@@ -183,7 +183,7 @@ const welcome = shouldWelcome();
     <!-- signed-in riders find these under the user icon instead -->
     <div v-if="account.status !== 'in'" class="group">
       <HelpTip title="Rider and setup">
-        <p>Your weight, the bike's weight and your FTP set how fast you go for a given power and what the zones and estimates mean; get FTP roughly right and the rest follows. Hill difficulty scales how much of each gradient the trainer makes you feel, without changing your speed. Gear feel picks the model behind the virtual gears. The rider's look is just for you.</p>
+        <p>Your weight, the bike's weight and your FTP set how fast you go for a given power and what the zones and estimates mean; get FTP roughly right and the rest follows. Hill difficulty scales how much of each gradient the trainer makes you feel, without changing your speed. Gear feel picks the model behind the virtual gears, and the lightest and hardest gear set the span the 20 gears are spread over: real ratios, so 0.55 is lighter than any cassette and 5.49 is a 55/10. The rider's look is just for you.</p>
         <p>With an account these live on your account page instead and follow you between devices.</p>
       </HelpTip>
       <section>

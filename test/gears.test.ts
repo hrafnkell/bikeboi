@@ -136,3 +136,41 @@ describe('gears', () => {
     expect(trainerSpeedFor(60)).toBeCloseTo(GEAR_RATIOS[REFERENCE_GEAR] * WHEEL_CIRCUMFERENCE, 10);
   });
 });
+
+import { buildGears, startGear, GEAR_SPAN } from '../src/ride/gears.ts';
+import { normalizeSettings } from '../src/state.ts';
+
+describe('gear span', () => {
+  test('the default table is the span passing through the reference ratio', () => {
+    expect(buildGears()).toEqual([...GEAR_RATIOS]);
+    expect(GEAR_RATIOS[0]).toBe(GEAR_SPAN.low);
+    expect(GEAR_RATIOS[GEAR_COUNT - 1]).toBe(GEAR_SPAN.high);
+    expect(startGear(GEAR_RATIOS)).toBe(REFERENCE_GEAR);
+  });
+
+  test('a custom span keeps 20 even steps between its ends and still starts near 2.4', () => {
+    const g = buildGears(0.4, 7);
+    expect(g).toHaveLength(GEAR_COUNT);
+    expect(g[0]).toBe(0.4);
+    expect(g[GEAR_COUNT - 1]).toBe(7);
+    for (let i = 1; i < GEAR_COUNT; i++) expect(g[i] / g[i - 1]).toBeGreaterThan(1.1);
+    for (let i = 1; i < GEAR_COUNT; i++) expect(g[i] / g[i - 1]).toBeLessThan(1.2);
+    expect(g[startGear(g)]).toBe(2.4);
+    // the narrowest span allowed still has the reference ratio inside it
+    const narrow = buildGears(1.5, 3);
+    expect(narrow[0]).toBe(1.5);
+    expect(narrow[GEAR_COUNT - 1]).toBe(3);
+    expect(narrow[startGear(narrow)]).toBe(2.4);
+    // out-of-range ends are clamped
+    expect(buildGears(0.01, 50)[0]).toBe(0.3);
+    expect(buildGears(0.01, 50)[GEAR_COUNT - 1]).toBe(8);
+  });
+
+  test('settings keep the span within range', () => {
+    const s = normalizeSettings({ gearLow: 0.9, gearHigh: 99 });
+    expect(s.gearLow).toBe(0.9);
+    expect(s.gearHigh).toBe(8);
+    expect(normalizeSettings({}).gearLow).toBe(GEAR_SPAN.low);
+    expect(normalizeSettings({ gearLow: 'x' }).gearHigh).toBe(GEAR_SPAN.high);
+  });
+});

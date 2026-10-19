@@ -8,16 +8,48 @@ import { G0 } from '../types.ts';
  * for a long 7 % in the saddle; the steps are about 13 % (a touch coarser than a cassette)
  * so a meaningful change is one or two clicks rather than three or four.
  */
-export const GEAR_RATIOS: readonly number[] = [
-  0.55, 0.62, 0.70, 0.79, 0.90, 1.02, 1.15, 1.30, 1.47, 1.66, 1.88, 2.12,
-  2.4,
-  2.70, 3.04, 3.42, 3.85, 4.33, 4.88, 5.49,
-];
+export const GEAR_COUNT = 20;
 
-export const GEAR_COUNT = GEAR_RATIOS.length;
+/** A middling real ratio (50/21, 36/15, 34/14): rides start in the gear nearest it. */
+export const REFERENCE_RATIO = 2.4;
 
-/** The gear in which the trainer is told the true gradient (ratio 2.40). */
-export const REFERENCE_GEAR = 12;
+/** The default span, and how far the rider may stretch it either way. */
+export const GEAR_SPAN = { low: 0.55, high: 5.49 } as const;
+export const GEAR_LOW_RANGE = { min: 0.3, max: 1.5 } as const;
+export const GEAR_HIGH_RANGE = { min: 3, max: 8 } as const;
+
+/**
+ * The gear table for a span: GEAR_COUNT ratios from low to high in even (geometric) steps,
+ * passing exactly through the reference ratio (the ranges keep it inside every span).
+ */
+export function buildGears(low: number = GEAR_SPAN.low, high: number = GEAR_SPAN.high): number[] {
+  low = Math.min(Math.max(low, GEAR_LOW_RANGE.min), GEAR_LOW_RANGE.max);
+  high = Math.min(Math.max(high, GEAR_HIGH_RANGE.min), GEAR_HIGH_RANGE.max);
+  const steps = GEAR_COUNT - 1;
+  const out: number[] = [];
+  const below = Math.round((steps * Math.log(REFERENCE_RATIO / low)) / Math.log(high / low));
+  for (let i = 0; i < GEAR_COUNT; i++) {
+    const r = i <= below
+      ? REFERENCE_RATIO * Math.pow(REFERENCE_RATIO / low, (i - below) / below)
+      : REFERENCE_RATIO * Math.pow(high / REFERENCE_RATIO, (i - below) / (steps - below));
+    out.push(Math.round(r * 100) / 100);
+  }
+  return out;
+}
+
+/** The index of the gear nearest the reference ratio: where a ride starts. */
+export function startGear(ratios: readonly number[]): number {
+  let best = 0;
+  for (let i = 1; i < ratios.length; i++) {
+    if (Math.abs(Math.log(ratios[i] / REFERENCE_RATIO)) < Math.abs(Math.log(ratios[best] / REFERENCE_RATIO))) best = i;
+  }
+  return best;
+}
+
+export const GEAR_RATIOS: readonly number[] = buildGears();
+
+/** The gear in which the trainer is told the true gradient (ratio 2.40) in the default table. */
+export const REFERENCE_GEAR = startGear(GEAR_RATIOS);
 
 export const WHEEL_CIRCUMFERENCE = 2.105; // m
 
@@ -31,8 +63,8 @@ export function gearFactor(index: number, reference = REFERENCE_GEAR): number {
 }
 
 /** Cadence (rpm) that would give this road speed in this gear. */
-export function cadenceFor(speed: number, index: number): number {
-  return (speed / (GEAR_RATIOS[clampGear(index)] * WHEEL_CIRCUMFERENCE)) * 60;
+export function cadenceFor(speed: number, index: number, ratios: readonly number[] = GEAR_RATIOS): number {
+  return (speed / (ratios[clampGear(index)] * WHEEL_CIRCUMFERENCE)) * 60;
 }
 
 export interface SimGrade {

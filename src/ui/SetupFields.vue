@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // Weight, FTP, gear feel and hill difficulty.
+import { computed } from 'vue';
 import { devices } from '../ble/devices.ts';
 import { clamp } from '../format.ts';
 import { saveSettings } from '../state.ts';
 import type { GearMode } from '../state.ts';
 import { settingsR } from './store.ts';
 import { massToKg, massValue, unitLabels } from './units.ts';
+import { GEAR_COUNT, GEAR_HIGH_RANGE, GEAR_LOW_RANGE } from '../ride/gears.ts';
 
 function setNumber(e: Event, key: 'riderMass' | 'bikeMass' | 'ftp', min: number, max: number) {
   const input = e.target as HTMLInputElement;
@@ -32,6 +34,15 @@ function setGearMode(e: Event) {
   settingsR.gearMode = (e.target as HTMLSelectElement).value as GearMode;
   saveSettings();
 }
+/** The ends of the gear table, as real ratios. */
+function setGearEnd(e: Event, key: 'gearLow' | 'gearHigh', min: number, max: number) {
+  const input = e.target as HTMLInputElement;
+  const v = Number(input.value);
+  if (Number.isFinite(v)) settingsR[key] = Math.round(clamp(v, min, max) * 100) / 100;
+  input.value = settingsR[key].toFixed(2);
+  saveSettings();
+}
+const gearStep = computed(() => Math.round((Math.pow(settingsR.gearHigh / settingsR.gearLow, 1 / (GEAR_COUNT - 1)) - 1) * 100));
 function setDifficulty(e: Event) {
   settingsR.difficulty = clamp(Number((e.target as HTMLInputElement).value) / 100, 0, 1);
   saveSettings();
@@ -68,6 +79,16 @@ function setDifficulty(e: Event) {
         <option value="model">Realistic (speed-aware)</option>
         <option value="offset">Simple (fixed step per gear)</option>
       </select>
+    </label>
+    <label class="field">
+      <span>Lightest gear</span>
+      <input type="number" :min="GEAR_LOW_RANGE.min" :max="GEAR_LOW_RANGE.max" step="0.05" :value="settingsR.gearLow.toFixed(2)" inputmode="decimal" @change="setGearEnd($event, 'gearLow', GEAR_LOW_RANGE.min, GEAR_LOW_RANGE.max)" />
+      <em>ratio</em>
+    </label>
+    <label class="field">
+      <span>Hardest gear</span>
+      <input type="number" :min="GEAR_HIGH_RANGE.min" :max="GEAR_HIGH_RANGE.max" step="0.05" :value="settingsR.gearHigh.toFixed(2)" inputmode="decimal" @change="setGearEnd($event, 'gearHigh', GEAR_HIGH_RANGE.min, GEAR_HIGH_RANGE.max)" />
+      <em>{{ gearStep }}% a step</em>
     </label>
     <label class="field">
       <span>Hill difficulty</span>
