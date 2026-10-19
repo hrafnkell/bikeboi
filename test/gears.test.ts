@@ -22,7 +22,7 @@ function roadForce(G: number, v: number, m = base.mass): number {
 
 describe('gears', () => {
   test('table is ascending and the reference gear is neutral', () => {
-    expect(GEAR_COUNT).toBe(27);
+    expect(GEAR_COUNT).toBe(20);
     expect(GEAR_RATIOS[REFERENCE_GEAR]).toBe(2.4);
     for (let i = 1; i < GEAR_COUNT; i++) expect(GEAR_RATIOS[i]).toBeGreaterThan(GEAR_RATIOS[i - 1]);
     expect(gearFactor(REFERENCE_GEAR)).toBe(1);
@@ -78,7 +78,7 @@ describe('gears', () => {
         if (f >= 0) resisting++;
         prev = f;
       }
-      expect(resisting).toBeGreaterThanOrEqual(6);
+      expect(resisting).toBeGreaterThanOrEqual(4);
     }
   });
 

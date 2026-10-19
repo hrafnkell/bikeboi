@@ -36,7 +36,7 @@ import { StanceSelector } from '../game/stance.ts';
 import { bus, live, settings, totalMass } from '../state.ts';
 import { CRR, CW } from '../types.ts';
 
-const OFFSET_STEP = 0.005; // gradient per gear in the offset rule
+const OFFSET_STEP = 0.007; // gradient per gear in the offset rule
 const POWER_WINDOW_MS = 3000; // the power card averages this long
 const SIM_PUSH_MS = 500;
 
