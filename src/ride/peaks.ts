@@ -1,6 +1,6 @@
 // Best average power over fixed windows, from one-per-second samples.
 
-export const PEAK_WINDOWS = [5, 20, 60, 300, 1200] as const;
+export const PEAK_WINDOWS = [5, 10, 20, 30, 60, 300, 1200] as const;
 
 export type PeakPowers = Partial<Record<(typeof PEAK_WINDOWS)[number], number>>;
 

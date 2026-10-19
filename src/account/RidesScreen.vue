@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Rides kept in the account, newest first.
 import { onMounted, ref } from 'vue';
+import type { RideMetrics } from '../ride/metrics.ts';
 import { api } from '../api/client.ts';
 import { fmtClock } from '../format.ts';
 import { fmtAlt, fmtDist } from '../ui/units.ts';
@@ -15,7 +16,7 @@ interface RideRow {
   circuitName: string;
   filename: string;
   summary: RideSummary;
-  meta: { pacer?: number | null; workout?: string | null; laps?: number; trace?: unknown };
+  meta: { pacer?: number | null; workout?: string | null; laps?: number; trace?: unknown; peaks?: Record<string, number>; metrics?: RideMetrics };
   fitBytes: number;
   createdAt: number;
   intervalsId: string | null;
@@ -126,8 +127,11 @@ onMounted(() => {
             <span class="ride-spec-label">{{ label }}</span>
           </div>
         </div>
-        <div v-if="ride.summary.laps > 0 || ride.meta?.workout || ride.meta?.pacer" class="ride-tags">
+        <div v-if="ride.summary.laps > 0 || ride.meta?.workout || ride.meta?.pacer || ride.meta?.metrics" class="ride-tags">
           <span v-if="ride.summary.laps > 0">{{ ride.summary.laps }} {{ ride.summary.laps === 1 ? 'lap' : 'laps' }}</span>
+          <span v-if="ride.meta?.metrics" :title="`Normalized power, intensity and training stress against an FTP of ${ride.meta.metrics.ftp} W`">
+            NP {{ ride.meta.metrics.np }} W<template v-if="ride.meta.metrics.intensity !== null"> · IF {{ ride.meta.metrics.intensity.toFixed(2) }} · TSS {{ ride.meta.metrics.tss }}</template>
+          </span>
           <span v-if="ride.meta?.workout">Workout: {{ ride.meta.workout }}</span>
           <span v-else-if="ride.meta?.pacer">Pacemaker {{ ride.meta.pacer }} W</span>
         </div>
@@ -149,7 +153,7 @@ onMounted(() => {
             </svg>
           </button>
         </div>
-        <RideDetails v-if="open === ride.id" :ride-id="ride.id" :circuit-id="ride.circuitId" :trace="ride.meta?.trace ?? null" />
+        <RideDetails v-if="open === ride.id" :ride-id="ride.id" :circuit-id="ride.circuitId" :trace="ride.meta?.trace ?? null" :peaks="ride.meta?.peaks" :metrics="ride.meta?.metrics" />
       </li>
     </ol>
     <div class="row">

@@ -29,6 +29,19 @@ describe('upload queue', () => {
     expect(uploads.last).toBe('saved');
   });
 
+  test('the records the server reports for the saved ride are kept for the summary screen', async () => {
+    const store = createMemoryUploadStore();
+    await enqueue(finished(3000), extras, store);
+    expect(uploads.records).toEqual([]);
+    await flushUploads(store, async () => ({ ride: {}, records: ['distance', 'peak5', 7 as unknown as string], first: false }));
+    expect(uploads.records).toEqual(['distance', 'peak5']);
+    expect(uploads.first).toBe(false);
+    await enqueue(finished(4000), extras, store);
+    expect(uploads.records).toEqual([]);
+    await flushUploads(store, async () => ({ ride: {}, records: [], first: true }));
+    expect(uploads.first).toBe(true);
+  });
+
   test('a network failure keeps everything and stops the run', async () => {
     const store = createMemoryUploadStore();
     await enqueue(finished(1), extras, store);

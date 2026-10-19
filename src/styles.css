@@ -521,3 +521,29 @@ a { color: var(--accent); }
   .shift-down { grid-column: 1; margin-left: var(--pad-l); }
   .shift-up { grid-column: 2; margin-right: var(--pad-r); }
 }
+
+/* summary: records and training */
+.record-banner { position: relative; overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 1.05rem; }
+.record-banner strong { position: relative; z-index: 1; }
+.confetto { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; opacity: 0; animation: confetto-fall 2.4s ease-in forwards; }
+@keyframes confetto-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(120px) rotate(var(--spin, 180deg)); opacity: 0; }
+}
+.ftp-offer { margin: 8px 0 0; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.ftp-offer .btn { padding: 4px 10px; font-size: 0.9rem; }
+.ride-numbers { margin: 0 0 10px; }
+.records-card h3 { margin: 12px 0 6px; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+.record-list, .effort-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.record-list li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; border-top: 1px solid var(--line); padding-top: 6px; }
+.record-list li:first-child { border-top: 0; padding-top: 0; }
+.record-label { color: var(--muted); font-size: 0.9rem; }
+.record-value { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.record-where { grid-column: 1 / -1; color: var(--muted); font-size: 0.8rem; }
+.effort-list li { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 0 10px; }
+.effort-label { color: var(--muted); font-size: 0.9rem; }
+.effort-bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.effort-bar i { display: block; height: 100%; background: var(--accent, #3987e5); border-radius: 5px; }
+.effort-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.effort-list .record-where { grid-column: 2 / -1; }

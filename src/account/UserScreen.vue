@@ -6,6 +6,7 @@ import SetupFields from '../ui/SetupFields.vue';
 import AccountCard from './AccountCard.vue';
 import IntervalsCard from './IntervalsCard.vue';
 import StatsCard from './StatsCard.vue';
+import RecordsCard from './RecordsCard.vue';
 
 const emit = defineEmits<{ back: [] }>();
 onMounted(() => window.scrollTo(0, 0));
@@ -19,6 +20,10 @@ onMounted(() => window.scrollTo(0, 0));
       <section>
         <h2>Your week</h2>
         <StatsCard />
+      </section>
+      <section>
+        <h2>Your records</h2>
+        <RecordsCard />
       </section>
     </div>
     <div class="group">

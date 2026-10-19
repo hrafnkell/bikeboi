@@ -157,7 +157,7 @@ Main Set 3x
     <section>
       <h2>After the ride</h2>
       <p>
-        End the ride from the pause menu. The summary shows your totals, lap times and graphs of power and heart rate, and a button to download the ride as a FIT file. Upload that file to Strava, Garmin Connect or intervals.icu like any other activity.
+        End the ride from the pause menu. The summary shows your totals, lap times, best power over 5 seconds to 20 minutes, normalized power, intensity and training stress against your FTP, heart-rate drift on longer rides, and graphs of power and heart rate, plus a button to download the ride as a FIT file. A ride with a strong 20 minutes offers to raise your FTP. Signed in, the summary also says which of your personal records the ride broke, and your account page keeps the records and best efforts across every ride. Upload that file to Strava, Garmin Connect or intervals.icu like any other activity.
       </p>
       <div class="shots">
         <figure class="shot">

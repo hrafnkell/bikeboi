@@ -4,6 +4,7 @@ import { reactive } from 'vue';
 import { ApiError, apiForm, isNetworkError } from '../api/client.ts';
 import type { FinishedRide, RideSummary } from '../ride/recorder.ts';
 import type { EncodedTrace } from '../ride/trace.ts';
+import type { RideMetrics } from '../ride/metrics.ts';
 
 /** What goes into a ride's meta on the account, beyond the summary. */
 export interface RideExtras {
@@ -12,8 +13,10 @@ export interface RideExtras {
   laps: number;
   /** The trainer's name, '' when unknown. */
   trainer: string;
-  /** Best average power over 5 s, 20 s, 1, 5 and 20 minutes, where the ride was long enough. */
+  /** Best average power over 5 s to 20 minutes (ride/peaks.ts), where the ride was long enough. */
   peaks: Record<string, number>;
+  /** Normalized power, intensity, stress, work, FTP estimate and drift; absent on older rides. */
+  metrics?: RideMetrics;
   /** Gear, wheel speed and trainer commands per record (see ride/trace.ts); null for older rides. */
   trace?: EncodedTrace | null;
 }
@@ -41,6 +44,9 @@ export const uploads = reactive({
   last: 'idle' as 'idle' | 'uploading' | 'saved' | 'queued' | 'failed',
   /** What happened on intervals.icu for the last saved ride: '' when not connected. */
   intervals: '' as '' | 'sent' | 'duplicate' | 'failed',
+  /** Personal records the last saved ride broke (keys from server/records.ts), and whether it was the first ride on the account. */
+  records: [] as string[],
+  first: false,
 });
 
 const MAX_QUEUE = 20;
@@ -150,6 +156,8 @@ export async function enqueue(
     for (const old of all.slice(0, Math.max(0, all.length - MAX_QUEUE))) await s.remove(old.startedAt);
     uploads.pending = Math.min(all.length, MAX_QUEUE);
     uploads.last = 'queued';
+    uploads.records = [];
+    uploads.first = false;
   } catch (e) {
     console.warn('bikeboi: could not queue the ride for upload', e);
   }
@@ -175,10 +183,12 @@ export function flushUploads(s: UploadStore = store(), post: PostRide = postRide
     uploads.last = 'uploading';
     for (const entry of entries) {
       try {
-        const result = (await post(entry)) as { ride?: { intervalsId?: string | null; intervalsError?: string | null } } | undefined;
+        const result = (await post(entry)) as { ride?: { intervalsId?: string | null; intervalsError?: string | null }; records?: string[]; first?: boolean } | undefined;
         await s.remove(entry.startedAt);
         uploads.pending -= 1;
         uploads.last = 'saved';
+        uploads.records = Array.isArray(result?.records) ? result.records.filter((k) => typeof k === 'string') : [];
+        uploads.first = result?.first === true;
         const r = result?.ride;
         uploads.intervals = r?.intervalsId ? 'sent' : r?.intervalsError ? 'failed' : '';
       } catch (e) {

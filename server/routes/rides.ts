@@ -5,6 +5,8 @@ import * as v from '../validate.ts';
 import { requireUser } from './auth.ts';
 import type { AuthContext } from './auth.ts';
 import { autoUploadEnabled, sendRide } from './intervals.ts';
+import { brokenRecords, collectRecords } from '../records.ts';
+import type { RecordRide } from '../records.ts';
 
 /** Per-user storage limits. Tests lower these. */
 export const quotas = { maxRides: 2000, maxBytes: 150 * 1024 * 1024 };
@@ -42,6 +44,13 @@ function rideId(req: Request): string {
 
 export function ridesRoutes(ctx: AuthContext) {
   const byId = ctx.db.query(`SELECT ${COLUMNS} FROM rides WHERE user_id = $u AND id = $id`);
+  const forRecords = ctx.db.query(`SELECT id, started_at AS startedAt, circuit_name AS circuitName, summary, json_extract(meta, '$.peaks') AS peaks FROM rides WHERE user_id = $u`);
+
+  /** Every ride of the user in the shape the records module reads. */
+  function recordRides(userId: number): RecordRide[] {
+    const rows = forRecords.all({ u: userId }) as Array<{ id: string; startedAt: number; circuitName: string; summary: string; peaks: string | null }>;
+    return rows.map((r) => ({ id: r.id, startedAt: r.startedAt, circuitName: r.circuitName, summary: JSON.parse(r.summary), peaks: r.peaks ? JSON.parse(r.peaks) : null }));
+  }
 
   return {
     async create(req: Request): Promise<Response> {
@@ -78,6 +87,11 @@ export function ridesRoutes(ctx: AuthContext) {
       const usage = ctx.db.query('SELECT count(*) AS n, coalesce(sum(fit_bytes), 0) AS bytes FROM rides WHERE user_id = $u').get({ u: user.id }) as { n: number; bytes: number };
       if (usage.n >= quotas.maxRides || usage.bytes + fit.length > quotas.maxBytes) throw new ApiError(413, 'storage quota reached');
 
+      // what this ride beats, judged against everything saved before it
+      const before = collectRecords(recordRides(user.id));
+      const peaks = meta.peaks && typeof meta.peaks === 'object' ? (meta.peaks as Record<string, number>) : null;
+      const records = before.rides === 0 ? [] : brokenRecords(before, { id: '', startedAt, circuitName, summary, peaks });
+
       const id = Bun.randomUUIDv7();
       ctx.db
         .query(
@@ -89,7 +103,13 @@ export function ridesRoutes(ctx: AuthContext) {
       if (autoUploadEnabled(ctx, user.id)) {
         await sendRide(ctx, user.id, { id, filename, circuitName, summary, meta, fit }).catch(() => {});
       }
-      return json({ ride: toJson(byId.get({ u: user.id, id }) as RideRow) }, 201);
+      return json({ ride: toJson(byId.get({ u: user.id, id }) as RideRow), records, first: before.rides === 0 }, 201);
+    },
+
+    /** Personal records and best efforts across all saved rides. */
+    records(req: Request): Response {
+      const user = requireUser(ctx, req);
+      return json(collectRecords(recordRides(user.id)));
     },
 
     /** Send one ride to intervals.icu now. */

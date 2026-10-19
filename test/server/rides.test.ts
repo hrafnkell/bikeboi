@@ -97,3 +97,37 @@ describe('rides', () => {
     expect((await app.client().json('GET', '/api/rides/stats')).status).toBe(401);
   });
 });
+
+describe('records', () => {
+  test('an upload says which records it broke, and the records endpoint lists them', async () => {
+    const d = app.client();
+    expect((await d.json('POST', '/api/auth/register', { email: uniqueEmail(), password: 'password1' })).status).toBe(201);
+    const now = Date.now();
+    const first = await upload(d, now - 3000, { meta: { peaks: { 5: 400, 60: 250, 1200: 180 } } });
+    expect(first.status).toBe(201);
+    expect(first.body.first).toBe(true);
+    expect(first.body.records).toEqual([]);
+    // longer and higher, but with a weaker sprint and too short for an average-power record
+    const second = await upload(d, now - 2000, {
+      summary: { ...summary, durationS: 300, distanceM: 6000, ascentM: 100, avgPower: 250, avgSpeed: 9 },
+      meta: { peaks: { 5: 350, 60: 260 } },
+    });
+    expect(second.status).toBe(201);
+    expect(second.body.first).toBe(false);
+    expect(second.body.records.sort()).toEqual(['ascent', 'distance', 'peak60']);
+    const r = await d.json('GET', '/api/rides/records');
+    expect(r.status).toBe(200);
+    expect(r.body.rides).toBe(2);
+    expect(r.body.records.distance).toMatchObject({ value: 6000, rideId: second.body.ride.id, circuitName: 'Rolling Hills' });
+    expect(r.body.records.duration).toMatchObject({ value: 600, rideId: first.body.ride.id });
+    expect(r.body.records.avgPower).toMatchObject({ value: 200, rideId: first.body.ride.id });
+    expect(r.body.records.work.value).toBe(600 * 200);
+    expect(r.body.peaks['5']).toMatchObject({ value: 400 });
+    expect(r.body.peaks['60']).toMatchObject({ value: 260 });
+    expect(r.body.peaks['1200']).toMatchObject({ value: 180 });
+    expect(r.body.peaks['300']).toBeUndefined();
+    // a re-sent ride is the same ride, not a new record
+    expect((await upload(d, now - 2000)).status).toBe(200);
+    expect((await app.client().json('GET', '/api/rides/records')).status).toBe(401);
+  });
+});

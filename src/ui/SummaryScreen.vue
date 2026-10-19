@@ -8,10 +8,15 @@ import { downloadFit } from '../ride/recorder.ts';
 import { account } from '../account/session.ts';
 import { uploads } from '../sync/upload-queue.ts';
 import { PEAK_WINDOWS, peakLabel, peakPowers } from '../ride/peaks.ts';
+import { rideMetrics } from '../ride/metrics.ts';
+import { recordsSentence } from './records.ts';
+import { settingsR } from './store.ts';
+import { saveSettings } from '../state.ts';
 import { describeSegment } from '../ride/segments.ts';
 import type { SegmentEffort } from '../ride/segments.ts';
 import LineChart from './LineChart.vue';
 import { settings } from '../state.ts';
+import { ref } from 'vue';
 
 const props = defineProps<{ outcome: RideOutcome }>();
 const emit = defineEmits<{ done: [] }>();
@@ -57,12 +62,43 @@ const stats = computed(() => {
 });
 
 /** Best average power over each window the ride was long enough for. */
+const peakValues = computed(() => (finished.value ? peakPowers(finished.value.ride.samples.map((s) => s.power)) : {}));
 const peaks = computed(() => {
-  const f = finished.value;
-  if (!f) return [] as Array<[string, string]>;
-  const p = peakPowers(f.ride.samples.map((s) => s.power));
+  const p = peakValues.value;
   return PEAK_WINDOWS.filter((w) => p[w] !== undefined).map((w) => [peakLabel(w), `${p[w]} W`] as [string, string]);
 });
+
+/** Normalized power, intensity, stress, work and drift against the FTP the ride was done with. */
+const metrics = computed(() => (finished.value ? rideMetrics(finished.value.ride.samples, settings.ftp, peakValues.value) : null));
+const training = computed(() => {
+  const m = metrics.value;
+  if (!m) return [] as Array<[string, string]>;
+  const rows: Array<[string, string]> = [['Normalized power', `${m.np} W`], ['Work', `${m.workKj} kJ`]];
+  if (m.intensity !== null) rows.push(['Intensity', m.intensity.toFixed(2)]);
+  if (m.tss !== null) rows.push(['Training stress', String(m.tss)]);
+  if (m.hrDrift !== null) rows.push(['Heart-rate drift', `${m.hrDrift > 0 ? '+' : ''}${m.hrDrift.toFixed(1)}%`]);
+  return rows;
+});
+
+// an FTP estimate is offered only when it beats the setting: a short easy ride says nothing
+const ftpRaised = ref(false);
+const ftpEstimate = computed(() => {
+  const e = metrics.value?.ftpEstimate ?? null;
+  return e !== null && e > settingsR.ftp && !props.outcome.simulated ? e : null;
+});
+function raiseFtp() {
+  if (ftpEstimate.value === null) return;
+  settingsR.ftp = ftpEstimate.value;
+  saveSettings();
+  ftpRaised.value = true;
+}
+
+// personal records come back with the upload
+const recordLine = computed(() => (uploads.last === 'saved' && uploads.pending === 0 ? recordsSentence(uploads.records) : ''));
+const CONFETTI_COLORS = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#da77f2', '#ffa94d'];
+const confetti = Array.from({ length: 36 }, (_, i) => ({
+  left: `${(i * 37) % 100}%`, delay: `${((i * 53) % 100) / 100}s`, color: CONFETTI_COLORS[i % CONFETTI_COLORS.length], spin: `${(i * 97) % 360}deg`,
+}));
 
 // Power and heart rate share one chart, each on its own axis.
 const hasCharts = computed(() => !!finished.value && finished.value.ride.samples.length > 1);
@@ -125,6 +161,11 @@ function download() {
         {{ uploads.last === 'saved' && uploads.pending === 0 ? 'Saved to your account' : uploads.last === 'uploading' ? 'Uploading to your account…' : uploads.last === 'failed' ? 'Could not be saved to your account' : 'Will be uploaded to your account when you’re online' }}<template v-if="uploads.last === 'saved' && uploads.pending === 0 && uploads.intervals">{{ uploads.intervals === 'sent' ? ' and sent to intervals.icu' : '; the intervals.icu upload failed, retry from My rides' }}</template>.
       </span>
     </p>
+    <div v-if="recordLine" class="record-banner" role="status">
+      <i v-for="(c, i) in confetti" :key="i" class="confetto" :style="{ left: c.left, animationDelay: c.delay, background: c.color, '--spin': c.spin }"></i>
+      <strong>🏆 {{ recordLine }}</strong>
+    </div>
+    <p v-else-if="uploads.first && uploads.last === 'saved'" class="note">Your first ride on the account: every number from here on is a record to beat.</p>
     <div v-if="finished" class="stats">
       <div v-for="[label, value] in stats" :key="label" class="stat">
         <span class="stat-value">{{ value }}</span>
@@ -139,6 +180,23 @@ function download() {
           <span class="stat-label">{{ label }}</span>
         </div>
       </div>
+    </section>
+    <section v-if="training.length > 0">
+      <h2>Training</h2>
+      <div class="stats peaks">
+        <div v-for="[label, value] in training" :key="label" class="stat">
+          <span class="stat-value">{{ value }}</span>
+          <span class="stat-label">{{ label }}</span>
+        </div>
+      </div>
+      <p v-if="ftpEstimate !== null" class="ftp-offer">
+        <template v-if="ftpRaised">FTP set to {{ settingsR.ftp }} W.</template>
+        <template v-else>
+          Your best 20 minutes suggest an FTP of about {{ ftpEstimate }} W, above the {{ settingsR.ftp }} W you have set.
+          <button class="btn btn-small" @click="raiseFtp">Raise FTP to {{ ftpEstimate }} W</button>
+        </template>
+      </p>
+      <p v-else-if="metrics?.ftpEstimate === null" class="note">Ride 20 minutes or more for an FTP estimate.</p>
     </section>
     <p v-if="workoutLine" class="pacer-result">{{ workoutLine }}</p>
     <p v-if="pacerLine" class="pacer-result">{{ pacerLine }}</p>

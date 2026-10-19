@@ -21,6 +21,7 @@ export function extraRoutes(ctx: AuthContext): RouteTable {
     '/api/workouts/:id': { PUT: api(workouts.put), DELETE: api(workouts.remove) },
     '/api/rides': { GET: api(rides.list), POST: api(rides.create) },
     '/api/rides/stats': { GET: api(rides.stats) },
+    '/api/rides/records': { GET: api(rides.records) },
     '/api/rides/:id': { GET: api(rides.get), DELETE: api(rides.remove) },
     '/api/rides/:id/fit': { GET: api(rides.fit) },
     '/api/rides/:id/intervals': { POST: api(rides.toIntervals) },

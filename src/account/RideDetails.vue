@@ -10,9 +10,24 @@ import LineChart from '../ui/LineChart.vue';
 import { settings } from '../state.ts';
 import { describeError } from './session.ts';
 import { decodeTrace } from '../ride/trace.ts';
+import { PEAK_WINDOWS, peakLabel } from '../ride/peaks.ts';
+import type { RideMetrics } from '../ride/metrics.ts';
 import { altValue, fmtAlt, fmtDist, speedValue, unitLabels } from '../ui/units.ts';
 
-const props = defineProps<{ rideId: string; circuitId: string; trace?: unknown }>();
+const props = defineProps<{ rideId: string; circuitId: string; trace?: unknown; peaks?: Record<string, number>; metrics?: RideMetrics }>();
+
+/** Best power per window and the training numbers, as saved with the ride. */
+const peakRows = computed(() => PEAK_WINDOWS.flatMap((w) => (props.peaks?.[String(w)] ? [[peakLabel(w), `${props.peaks[String(w)]} W`] as [string, string]] : [])));
+const trainingRows = computed(() => {
+  const m = props.metrics;
+  if (!m) return [] as Array<[string, string]>;
+  const rows: Array<[string, string]> = [['Normalized power', `${m.np} W`], ['Work', `${m.workKj} kJ`]];
+  if (m.intensity !== null) rows.push(['Intensity', m.intensity.toFixed(2)]);
+  if (m.tss !== null) rows.push(['Training stress', String(m.tss)]);
+  if (m.ftpEstimate !== null) rows.push(['FTP estimate', `${m.ftpEstimate} W`]);
+  if (m.hrDrift !== null) rows.push(['Heart-rate drift', `${m.hrDrift > 0 ? '+' : ''}${m.hrDrift.toFixed(1)}%`]);
+  return rows;
+});
 
 // diagnostics kept beside the file: gear, the trainer's wheel speed and what it was told
 const trace = computed(() => decodeTrace(props.trace));
@@ -88,6 +103,12 @@ onMounted(async () => {
     <p v-if="error" class="account-error">{{ error }}</p>
     <p v-else-if="!track" class="note">Loading…</p>
     <template v-else>
+      <div v-if="peakRows.length > 0 || trainingRows.length > 0" class="ride-specs ride-numbers">
+        <div v-for="[label, value] in [...peakRows, ...trainingRows]" :key="label" class="ride-spec">
+          <span class="ride-spec-value">{{ value }}</span>
+          <span class="ride-spec-label">{{ label }}</span>
+        </div>
+      </div>
       <figure v-if="circuit" class="ride-route">
         <svg class="profile" viewBox="0 0 300 48" preserveAspectRatio="none" role="img" :aria-label="`Elevation profile of ${circuit.name}`">
           <polygon :points="profilePoints" />

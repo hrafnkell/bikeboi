@@ -6,7 +6,9 @@ describe('peak powers', () => {
     const power = Array.from({ length: 90 }, (_, i) => (i >= 30 && i < 50 ? 400 : 200));
     const p = peakPowers(power);
     expect(p[5]).toBe(400);
+    expect(p[10]).toBe(400);
     expect(p[20]).toBe(400);
+    expect(p[30]).toBe(Math.round((20 * 400 + 10 * 200) / 30));
     expect(p[60]).toBe(Math.round((20 * 400 + 40 * 200) / 60));
     expect(p[300]).toBeUndefined();
     expect(p[1200]).toBeUndefined();
